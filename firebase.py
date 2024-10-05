@@ -52,60 +52,55 @@ def convert_to_decimal_degrees(coord):
 
 def get_gps_location():
     """Fetch GPS location data from the A9G module and convert to decimal degrees."""
-    
-    # Check if GPS is already enabled
-    gps_status_response = send_command('AT+GPS=1')  # Check GPS status
-    print("GPS Status Response:", gps_status_response)  # Log the response
+    # Enable GPS if it's not enabled
+    gps_enable_response = send_command('AT+GPS=1')  # Ensure GPS is enabled
+    print("GPS Activation Response:", gps_enable_response)
 
-    # If GPS is not enabled, enable it
-    if "OK" not in gps_status_response:  # Check for "OK" in response to confirm GPS is enabled
-        gps_enable_response = send_command('AT+GPS=1')  # Activate GPS
-        print("GPS Activation Response:", gps_enable_response)  # Log the response
+    # Start reading GPS data
+    send_command('AT+GPSRD=5')  # Start GPS data reading
 
-    # Wait a moment to allow GPS to acquire a signal
-    time.sleep(12)  # Wait for 12 seconds before reading GPS data
-
-    # Read GPS data
-    response = send_command('AT+GPSRD=5')  # Read GPS data
-    print("GPS Data Read Response:", response)  # Log GPS data read response
-
-    time.sleep(12)
     latitude, longitude = None, None
-    
-    # Process the response to find GNGGA sentence
-    for line in response:
-        # Check if the line is in bytes and decode if necessary
-        if isinstance(line, bytes):
-            line = line.decode().strip()  # Decode only if it's bytes
-        else:
-            line = line.strip()  # Strip any whitespace if it's already a string
+    max_retries = 10  # Maximum retries for reading valid GPS data
+    retries = 0
 
-        # Check for GNGGA sentence
-        if "$GNGGA" in line:
-            print(f"Found GNGGA Line: {line}")  # Log found GNGGA line
-            
-            parts = line.split(",")
-            if len(parts) > 6:  # Check if we have enough data
-                latitude = convert_to_decimal_degrees(parts[2])  # Latitude in NMEA format
-                longitude = convert_to_decimal_degrees(parts[4])  # Longitude in NMEA format
-                
-                # Adjust signs based on hemisphere indicators
-                if parts[3] == 'S':
-                    latitude = -latitude
-                if parts[5] == 'W':
-                    longitude = -longitude
-                
-                print(f"Latitude: {latitude}, Longitude: {longitude}")  # Log the values
-                break  # Exit after processing the first GNGGA sentence
+    while retries < max_retries:
+        time.sleep(10)  # Wait for GPS data to be gathered
+        response = send_command('AT+GPSRD=5')  # Fetch GPS data again
+        print("GPS Data Read Response:", response)
 
-    # Stop reading GPS data
-    send_command('AT+GPSRD=0')  # Stop GPS data reading
-    print("Stopped GPS Data Reading.")  # Log that reading has stopped
+        # Look for GNGGA sentence in the response
+        for line in response:
+            if "$GNGGA" in line:
+                print(f"Found GNGGA Line: {line}")
+                parts = line.split(",")
+                if len(parts) > 6:  # Check if enough data is present
+                    latitude = convert_to_decimal_degrees(parts[2])  # Latitude
+                    longitude = convert_to_decimal_degrees(parts[4])  # Longitude
+
+                    # Adjust for hemisphere
+                    if parts[3] == 'S':
+                        latitude = -latitude
+                    if parts[5] == 'W':
+                        longitude = -longitude
+
+                    print(f"Latitude: {latitude}, Longitude: {longitude}")
+                    break  # Exit once valid data is found
+
+        if latitude and longitude:
+            break  # Exit the loop if valid data is received
+
+        retries += 1
+        print(f"Retrying GPS data read ({retries}/{max_retries})...")
+
+    # Stop GPS reading
+    send_command('AT+GPSRD=0')
+    print("Stopped GPS Data Reading.")
 
     if latitude is None or longitude is None:
-        print("No valid GPS data found.")
+        print("No valid GPS data found after retries.")
     
     return latitude, longitude
+
 
 def convert_to_decimal_degrees(coord):
     """Convert NMEA format coordinate to decimal degrees."""
