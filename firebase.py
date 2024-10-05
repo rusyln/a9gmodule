@@ -43,43 +43,75 @@ def check_module_ready():
     print("AT Command Response:", response)
     return any("OK" in line for line in response)
 
+def convert_to_decimal_degrees(coord):
+    """Convert NMEA format coordinate to decimal degrees."""
+    degrees = int(coord[:2])  # Degrees
+    minutes = float(coord[2:])  # Minutes
+    decimal_degrees = degrees + (minutes / 60)  # Convert to decimal degrees
+    return round(decimal_degrees, 7)  # Round to 7 decimal places
+
 def get_gps_location():
     """Fetch GPS location data from the A9G module and convert to decimal degrees."""
-    # Enable the GPS module
-    gps_enable_response = send_command('AT+GPS=1')  # Activate GPS
-    print("GPS Activation Response:", gps_enable_response)  # Optional: Log the response
+    
+    # Check if GPS is already enabled
+    gps_status_response = send_command('AT+GPS=1')  # Check GPS status
+    print("GPS Status Response:", gps_status_response)  # Log the response
+
+    # If GPS is not enabled, enable it
+    if "OK" not in gps_status_response:  # Check for "OK" in response to confirm GPS is enabled
+        gps_enable_response = send_command('AT+GPS=1')  # Activate GPS
+        print("GPS Activation Response:", gps_enable_response)  # Log the response
 
     # Wait a moment to allow GPS to acquire a signal
-    time.sleep(2)  # Adjust the sleep duration as needed
+    time.sleep(12)  # Wait for 12 seconds before reading GPS data
 
-    # Assume you have a function to send AT commands to the GPS and read the response
-    response = send_command('AT+GPSRD=10')  # Read GPS data
+    # Read GPS data
+    response = send_command('AT+GPSRD=5')  # Read GPS data
+    print("GPS Data Read Response:", response)  # Log GPS data read response
 
+    time.sleep(12)
     latitude, longitude = None, None
     
-    # Process the response to find GGA sentence
+    # Process the response to find GNGGA sentence
     for line in response:
-        # Check if the line is of bytes type, decode if it is
+        # Check if the line is in bytes and decode if necessary
         if isinstance(line, bytes):
             line = line.decode().strip()  # Decode only if it's bytes
+        else:
+            line = line.strip()  # Strip any whitespace if it's already a string
 
-        if line.startswith("$GNGGA"):
+        # Check for GNGGA sentence
+        if "$GNGGA" in line:
+            print(f"Found GNGGA Line: {line}")  # Log found GNGGA line
+            
             parts = line.split(",")
-            if len(parts) > 6:
-                # Convert latitude and longitude to decimal degrees
+            if len(parts) > 6:  # Check if we have enough data
                 latitude = convert_to_decimal_degrees(parts[2])  # Latitude in NMEA format
                 longitude = convert_to_decimal_degrees(parts[4])  # Longitude in NMEA format
                 
-                # Check N/S and E/W indicators and adjust sign accordingly
+                # Adjust signs based on hemisphere indicators
                 if parts[3] == 'S':
                     latitude = -latitude
                 if parts[5] == 'W':
                     longitude = -longitude
+                
+                print(f"Latitude: {latitude}, Longitude: {longitude}")  # Log the values
+                break  # Exit after processing the first GNGGA sentence
 
-                break  # Exit loop after processing the first GGA sentence
+    # Stop reading GPS data
+    send_command('AT+GPSRD=0')  # Stop GPS data reading
+    print("Stopped GPS Data Reading.")  # Log that reading has stopped
 
+    if latitude is None or longitude is None:
+        print("No valid GPS data found.")
+    
     return latitude, longitude
 
+def convert_to_decimal_degrees(coord):
+    """Convert NMEA format coordinate to decimal degrees."""
+    degrees = int(coord[:2])  # Degrees
+    minutes = float(coord[2:])  # Minutes
+    return degrees + (minutes / 60)  # Convert to decimal degrees
 
 
 def save_location_to_file(latitude, longitude):
@@ -175,19 +207,6 @@ def send_sms_to_all_contacts(latitude, longitude):
         send_sms(latitude, longitude, contact)  # Send to each contact
         time.sleep(1)  # Delay to avoid overwhelming the module
 
-def convert_to_decimal_degrees(degree_string):
-    """Convert NMEA degree string to decimal degrees."""
-    if not degree_string:
-        return None
-
-    # Parse the degrees and minutes
-    degrees = int(degree_string[:-7])  # Get the degree part
-    minutes = float(degree_string[-7:])  # Get the minutes part
-
-    # Convert to decimal degrees
-    decimal_degrees = degrees + (minutes / 60)
-    
-    return decimal_degrees
 
 
 def on_button_held():
