@@ -43,78 +43,42 @@ def check_module_ready():
     print("AT Command Response:", response)
     return any("OK" in line for line in response)
 
-def convert_to_decimal_degrees(coord):
-    """Convert NMEA format coordinate to decimal degrees."""
-    degrees = int(coord[:2])  # Degrees
-    minutes = float(coord[2:])  # Minutes
-    decimal_degrees = degrees + (minutes / 60)  # Convert to decimal degrees
-    return round(decimal_degrees, 7)  # Round to 7 decimal places
-
 def get_gps_location():
-    """Fetch GPS location data from the A9G module and convert to decimal degrees."""
+    """Fetch GPS location data from the A9G module using AT+LOCATION=2."""
     # Enable GPS if it's not enabled
     gps_enable_response = send_command('AT+GPS=1')  # Ensure GPS is enabled
     print("GPS Activation Response:", gps_enable_response)
 
-    # Start reading GPS data
-    send_command('AT+GPSRD=5')  # Start GPS data reading
+    # Request GPS location
+    response = send_command('AT+LOCATION=2')
+    print("GPS Location Response:", response)
 
     latitude, longitude = None, None
-    max_retries = 10  # Maximum retries for reading valid GPS data
-    retries = 0
 
-    while retries < max_retries:
-        time.sleep(10)  # Wait for GPS data to be gathered
-        response = send_command('AT+GPSRD=5')  # Fetch GPS data again
-        print("GPS Data Read Response:", response)
-
-        # Look for GNGGA sentence in the response
-        for line in response:
-            if "$GNGGA" in line:
-                print(f"Found GNGGA Line: {line}")
-                parts = line.split(",")
-                if len(parts) > 6:  # Check if enough data is present
-                    latitude = convert_to_decimal_degrees(parts[2])  # Latitude
-                    longitude = convert_to_decimal_degrees(parts[4])  # Longitude
-
-                    # Adjust for hemisphere
-                    if parts[3] == 'S':
-                        latitude = -latitude
-                    if parts[5] == 'W':
-                        longitude = -longitude
-
-                    print(f"Latitude: {latitude}, Longitude: {longitude}")
-                    break  # Exit once valid data is found
-
-        if latitude and longitude:
-            break  # Exit the loop if valid data is received
-
-        retries += 1
-        print(f"Retrying GPS data read ({retries}/{max_retries})...")
+    # Check for the expected response format
+    for line in response:
+        if "OK" not in line and line:  # Exclude the OK line
+            try:
+                latitude, longitude = map(float, line.split(','))
+                print(f"Latitude: {latitude}, Longitude: {longitude}")
+                break  # Exit once valid data is found
+            except ValueError:
+                print(f"Failed to parse GPS data: {line}")
 
     # Stop GPS reading
-    send_command('AT+GPSRD=0')
+    send_command('AT+GPS=0')
     print("Stopped GPS Data Reading.")
 
     if latitude is None or longitude is None:
-        print("No valid GPS data found after retries.")
+        print("No valid GPS data found.")
     
     return latitude, longitude
-
-
-def convert_to_decimal_degrees(coord):
-    """Convert NMEA format coordinate to decimal degrees."""
-    degrees = int(coord[:2])  # Degrees
-    minutes = float(coord[2:])  # Minutes
-    return degrees + (minutes / 60)  # Convert to decimal degrees
-
 
 def save_location_to_file(latitude, longitude):
     """Save latitude and longitude to a file."""
     with open(gps_location_file_path, 'w') as f:
         f.write(f"{latitude},{longitude}")
     print(f"Saved to {gps_location_file_path}: {latitude},{longitude}")
-
 
 def read_location_from_file():
     """Read latitude and longitude from the file."""
@@ -127,7 +91,7 @@ def read_location_from_file():
         print("GPS_location.txt not found.")
         return None, None
 
-def send_to_firebase(latitude, longitude):
+def send_to_firebase(user_id, latitude, longitude):
     """Send latitude and longitude to Firebase Realtime Database along with device ID and timestamp."""
     if check_firebase_connection():
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get current date and time
@@ -140,11 +104,13 @@ def send_to_firebase(latitude, longitude):
             "timestamp": current_time  # Current date and time
         }
 
-        # Push data to Firebase
-        db.child("locations").push(data)
-        print(f"Sent to Firebase: {data}")
+        # Update the location entry for the given user ID
+        db.child("locations").child(user_id).update(data)
+        print(f"Updated location in Firebase for user {user_id}: {data}")
     else:
         print("Unable to connect to Firebase.")
+
+
 
 def check_firebase_connection():
     """Check if we can connect to Firebase by attempting to read a value."""
@@ -202,8 +168,6 @@ def send_sms_to_all_contacts(latitude, longitude):
         send_sms(latitude, longitude, contact)  # Send to each contact
         time.sleep(1)  # Delay to avoid overwhelming the module
 
-
-
 def on_button_held():
     """Triggered when the button is held for 3 seconds."""
     print("Button held for 3 seconds! Fetching GPS location...")
@@ -225,7 +189,6 @@ def on_button_held():
     # Delay before returning to waiting for button press
     time.sleep(3)
     print("Returning to waiting for button press...")
-
 
 def main():
     """Main function to run the script."""
