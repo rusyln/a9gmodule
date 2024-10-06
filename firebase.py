@@ -49,7 +49,14 @@ def get_gps_location():
     gps_enable_response = send_command('AT+GPS=1')  # Ensure GPS is enabled
     print("GPS Activation Response:", gps_enable_response)
 
-    # Request GPS location
+    # Request GPS data for 5 seconds
+    gps_read_response = send_command('AT+GPSRD=5')
+    print("GPS Read Response:", gps_read_response)
+
+    # Wait for a moment to ensure data is ready
+    time.sleep(5)  # Wait for 5 seconds to allow GPS to gather data
+
+    # Now request GPS location
     response = send_command('AT+LOCATION=2')
     print("GPS Location Response:", response)
 
@@ -65,15 +72,14 @@ def get_gps_location():
             except ValueError:
                 print(f"Failed to parse GPS data: {line}")
 
-    # Stop GPS reading
-    send_command('AT+GPS=0')
-    print("Stopped GPS Data Reading.")
+    # Instead of stopping GPS, we just read the data again for 5 seconds
+    gps_read_response = send_command('AT+GPSRD=0')
+    print("GPS Read Response After Location Request:", gps_read_response)
 
     if latitude is None or longitude is None:
         print("No valid GPS data found.")
     
     return latitude, longitude
-
 def save_location_to_file(latitude, longitude):
     """Save latitude and longitude to a file."""
     with open(gps_location_file_path, 'w') as f:
