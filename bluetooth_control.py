@@ -55,8 +55,7 @@ def auto_accept_pairing():
                     print("Authorization request received. Automatically authorizing service...")
                     process.stdin.write('yes\n')  # Automatically authorize the service
                     process.stdin.flush()
-                    process.stdin.write('quit\n') 
-                    process.stdin.flush()
+                
                     time.sleep(1)  # Wait briefly before quitting
                     print("Quitting bluetoothctl after authorization...")
                     process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
