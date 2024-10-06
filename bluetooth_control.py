@@ -1,94 +1,77 @@
-from gpiozero import Button
-from signal import pause
 import subprocess
 import threading
 import re
 import bluetooth
 import time
 
-# Define GPIO pin for the button
-BUTTON_PIN = 17
+# Global variable to store the last connected MAC address
+last_connected_mac = None
 
-# Initialize the button
-button = Button(BUTTON_PIN)
-
-# Global flag to indicate pairing completion
-pairing_complete = False
-
-def enable_bluetooth():
-    print("Enabling Bluetooth...")
-    # Enable Bluetooth and make it discoverable and pairable
-    subprocess.run(["bluetoothctl", "power", "on"])
-    subprocess.run(["bluetoothctl", "discoverable", "on"])
-    subprocess.run(["bluetoothctl", "pairable", "on"])
-    print("Bluetooth is enabled, discoverable, and pairable.")
-    
-    # Start the pairing acceptance in a separate thread
-    threading.Thread(target=auto_accept_pairing, daemon=True).start()
 def auto_accept_pairing():
-    global pairing_complete
+    global last_connected_mac
+    
     print("Listening for pairing requests...")
-    # Start bluetoothctl interactively and respond to prompts
     process = subprocess.Popen(['bluetoothctl'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     try:
         while True:
             output = process.stdout.readline()
             if output:
-                output = output.strip()  # Clean the output
-                print(output)  # Print the output for debugging
+                output = output.strip()
+                print(output)
 
-                # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
                 if device_match:
                     mac_address = device_match.group(1)
                     print(f"Connected device MAC address: {mac_address}")
-                    save_mac_address(mac_address)
+                    
+                    # Check if it's the same device as before
+                    if mac_address == last_connected_mac:
+                        print("Same device detected. Ignoring.")
+                        continue  # Skip saving and proceed to handle other prompts
 
-                    # Automatically confirm the passkey and authorize service for the connected device
+                    # Save the MAC address if it's different
+                    print(f"Saving MAC address: {mac_address}")
+                    save_mac_address(mac_address)
+                    last_connected_mac = mac_address  # Update last connected MAC
+                    
+                    # Automatically confirm the passkey and authorize service
                     print("Automatically confirming the passkey...")
-                    process.stdin.write('yes\n')  # Automatically respond with 'yes' for the passkey
+                    process.stdin.write('yes\n')
                     process.stdin.flush()
                     
-                    # Wait briefly to handle any subsequent authorization requests
-                    time.sleep(1)  
-                    print("Authorization request received. Automatically authorizing service...")
-                    process.stdin.write('yes\n')  # Automatically authorize the service
-                    process.stdin.flush()
-                
-                    time.sleep(1)  # Wait briefly before quitting
-                    print("Quitting bluetoothctl after authorization...")
-                    process.stdin.write('yes\n') 
                     time.sleep(1)
-                    start_rfcomm_server()# Write 'quit' to exit bluetoothctl
+                    print("Authorization request received. Automatically authorizing service...")
+                    process.stdin.write('yes\n')
                     process.stdin.flush()
-                    break  # Exit the loop since we are quitting
 
-                # Respond to "Request confirmation" or "Confirm passkey" prompt
+                    time.sleep(1)
+                    print("Quitting bluetoothctl after authorization...")
+                    process.stdin.write('quit\n')
+                    time.sleep(1)
+                    process.stdin.flush()
+                    break
+
                 elif 'Request confirmation' in output or 'Confirm passkey' in output:
                     print("Automatically confirming the passkey...")
-                    process.stdin.write('yes\n')  # Automatically respond with 'yes'
+                    process.stdin.write('yes\n')
                     process.stdin.flush()
 
-                # Respond to "Authorize service" prompt
                 elif 'Authorize service' in output:
                     print("Authorization request received. Automatically authorizing service...")
-                    process.stdin.write('yes\n')  # Automatically authorize the service
+                    process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(1)  # Wait briefly before continuing to listen for more authorization requests
+                    time.sleep(1)
 
-                # Check for "Invalid command" in the output
-                if 'Invalid command' in output:
+                elif 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
-                    process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
+                    process.stdin.write('quit\n')
                     process.stdin.flush()
-                    break  # Exit the loop since we are quitting
+                    break
 
-                # Check for successful pairing completion
                 if 'Paired: yes' in output or 'Connection successful' in output:
                     print("Pairing completed successfully.")
-                    pairing_complete = True
-                    process.terminate()  # Terminate the process once pairing is complete
+                    process.terminate()
                     break
 
     except KeyboardInterrupt:
@@ -100,18 +83,31 @@ def save_mac_address(mac_address):
         file.write(f"{mac_address}\n")
     print(f"Saved MAC address: {mac_address} to device_connected.txt")
 
+# Start Bluetooth and listen for pairing requests
+def enable_bluetooth():
+    print("Enabling Bluetooth...")
+    subprocess.run(["bluetoothctl", "power", "on"])
+    subprocess.run(["bluetoothctl", "discoverable", "on"])
+    subprocess.run(["bluetoothctl", "pairable", "on"])
+    print("Bluetooth is enabled, discoverable, and pairable.")
+    
+    threading.Thread(target=auto_accept_pairing, daemon=True).start()
+
+# Start waiting for pairing completion
+def wait_for_pairing_completion():
+    print("Waiting for pairing to complete...")
+    while not last_connected_mac:
+        time.sleep(1)
+    print("Pairing completed. Proceeding with SP service setup and RFCOMM server...")
+    start_rfcomm_server()
+
 def start_rfcomm_server():
     print("Starting RFCOMM server on channel 23...")
-    
-    # Bind RFCOMM after SP profile is added
     subprocess.run(["sudo", "sdptool", "add", "--channel=23", "SP"])
-
-    # Create a Bluetooth socket
     server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
     port = 23
     server_sock.bind(("", port))
     server_sock.listen(1)
-
     print(f"Listening for connections on RFCOMM channel {port}...")
 
     try:
@@ -119,23 +115,21 @@ def start_rfcomm_server():
         print("Connection established with:", address)
 
         while True:
-            recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
+            recvdata = client_sock.recv(1024).decode('utf-8').strip()
             print("Received command:", recvdata)
 
             if recvdata == "Q":
                 print("Ending connection.")
                 break
 
-            # Execute the received command
             try:
-                # Run the command using subprocess
                 output = subprocess.check_output(recvdata, shell=True, text=True)
-                print("Command output:", output)  # Print command output for debugging
-                client_sock.send(output.encode('utf-8'))  # Send the output back to the client
+                print("Command output:", output)
+                client_sock.send(output.encode('utf-8'))
             except subprocess.CalledProcessError as e:
                 error_message = f"Error executing command: {e}\nOutput: {e.output}"
-                print("Error:", error_message)  # Print the error for debugging
-                client_sock.send(error_message.encode('utf-8'))  # Send error message back to client
+                print("Error:", error_message)
+                client_sock.send(error_message.encode('utf-8'))
 
     except OSError as e:
         print("Error:", e)
@@ -145,25 +139,10 @@ def start_rfcomm_server():
         server_sock.close()
         print("Sockets closed.")
 
-# Function to wait for pairing completion before proceeding
-def wait_for_pairing_completion():
-    global pairing_complete
-    print("Waiting for pairing to complete...")
-    while not pairing_complete:
-        time.sleep(1)  # Sleep for a second and check again
-    print("Pairing completed. Proceeding with SP service setup and RFCOMM server...")
-
-    # After pairing is done, add SP service and start RFCOMM server
-    start_rfcomm_server()
-
-# Attach the button hold event to enable Bluetooth
+# Initialize the button
+BUTTON_PIN = 17
+button = Button(BUTTON_PIN)
 button.when_held = enable_bluetooth
 
-# Print waiting message
 print("Waiting for button press...")
-
-# Wait for events
-pause()
-
-# Start waiting for pairing completion in a new thread
 threading.Thread(target=wait_for_pairing_completion, daemon=True).start()
