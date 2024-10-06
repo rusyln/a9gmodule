@@ -78,7 +78,7 @@ def auto_accept_pairing():
                     time.sleep(1)  # Wait briefly before continuing to listen for more authorization requests
 
                 # Check for "Invalid command" in the output
-                elif 'Invalid command' in output:
+                if 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
                     process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
                     process.stdin.flush()
