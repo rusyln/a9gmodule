@@ -58,16 +58,16 @@ def auto_accept_pairing():
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(3)  # Wait for 3 seconds
+                    time.sleep(5)  # Wait for 5 seconds
                     
                     print("Authorization request received. Automatically authorizing service...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(3)  # Wait for 3 seconds
+                    time.sleep(5)  # Wait for 5 seconds
 
                     print("Quitting bluetoothctl after authorization...")
                     process.stdin.write('quit\n')
-                    time.sleep(3)  # Wait for 3 seconds
+                    time.sleep(5)  # Wait for 5 seconds
                     process.stdin.flush()
                     break
 
@@ -75,13 +75,13 @@ def auto_accept_pairing():
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(3)  # Wait for 3 seconds
+                    time.sleep(5)  # Wait for 5 seconds
 
                 elif 'Authorize service' in output:
                     print("Authorization request received. Automatically authorizing service...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(3)  # Wait for 3 seconds
+                    time.sleep(5)  # Wait for 5 seconds
 
                 elif 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
