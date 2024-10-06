@@ -38,6 +38,7 @@ def auto_accept_pairing():
                 output = output.strip()
                 print(output)
 
+                # Check for device connection
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
                 if device_match:
                     mac_address = device_match.group(1)
@@ -53,50 +54,57 @@ def auto_accept_pairing():
                     save_mac_address(mac_address)
                     last_connected_mac = mac_address  # Update last connected MAC
                     
-                    # Automatically confirm the passkey for the first-time connection
-                    print("Automatically confirming the passkey for the first-time connection...")
-                    process.stdin.write('yes\n')
-                    process.stdin.flush()
-                    time.sleep(5)  # Wait for 5 seconds
-                    
-                    print("Authorization request received. Automatically authorizing service...")
-                    process.stdin.write('yes\n')
-                    process.stdin.flush()
-                    time.sleep(5)  # Wait for 5 seconds
+                    # Wait for Request confirmation
+                    while True:
+                        output = process.stdout.readline().strip()
+                        print(output)
+                        if "Request confirmation" in output:
+                            print("Automatically confirming the passkey...")
+                            process.stdin.write('yes\n')
+                            process.stdin.flush()
+                            time.sleep(5)  # Wait for 5 seconds
 
-                    print("Quitting bluetoothctl after authorization...")
+                            # Wait for Confirm passkey
+                            output = process.stdout.readline().strip()
+                            print(output)
+                            if "[agent] Confirm passkey" in output:
+                                print("Automatically confirming the passkey...")
+                                process.stdin.write('yes\n')
+                                process.stdin.flush()
+                                time.sleep(5)  # Wait for 5 seconds
+                                break  # Exit the inner loop after confirming
+
+                # Wait for Authorize service
+                while True:
+                    output = process.stdout.readline().strip()
+                    print(output)
+                    if "Authorize service" in output:
+                        print("Authorization request received. Automatically authorizing service...")
+                        process.stdin.write('yes\n')
+                        process.stdin.flush()
+                        time.sleep(5)  # Wait for 5 seconds
+                        break  # Exit the inner loop after authorizing
+
+                # Check if pairing is complete
+                if 'Paired: yes' in output or 'Connection successful' in output:
+                    print("Pairing completed successfully.")
                     process.stdin.write('quit\n')
-                    time.sleep(5)  # Wait for 5 seconds
                     process.stdin.flush()
+                    time.sleep(5)  # Wait for 5 seconds
                     pairing_complete = True  # Set the flag to indicate pairing is complete
                     break
 
-                elif 'Request confirmation' in output or 'Confirm passkey' in output:
-                    print("Automatically confirming the passkey...")
-                    process.stdin.write('yes\n')
-                    process.stdin.flush()
-                    time.sleep(5)  # Wait for 5 seconds
-
-                elif 'Authorize service' in output:
-                    print("Authorization request received. Automatically authorizing service...")
-                    process.stdin.write('yes\n')
-                    process.stdin.flush()
-                    time.sleep(5)  # Wait for 5 seconds
-
+                # Detect invalid commands
                 elif 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
                     process.stdin.write('quit\n')
                     process.stdin.flush()
                     break
 
-                if 'Paired: yes' in output or 'Connection successful' in output:
-                    print("Pairing completed successfully.")
-                    process.terminate()
-                    break
-
     except KeyboardInterrupt:
         print("Exiting...")
         process.terminate()
+
 
 def save_mac_address(mac_address):
     with open('device_connected.txt', 'a') as file:
