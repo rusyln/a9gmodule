@@ -25,9 +25,8 @@ def enable_bluetooth():
     
     # Start the pairing acceptance in a separate thread
     threading.Thread(target=auto_accept_pairing, daemon=True).start()
-
 def auto_accept_pairing():
-    global last_connected_mac
+    global last_connected_mac, pairing_complete
     
     print("Listening for pairing requests...")
     process = subprocess.Popen(['bluetoothctl'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -54,8 +53,8 @@ def auto_accept_pairing():
                     save_mac_address(mac_address)
                     last_connected_mac = mac_address  # Update last connected MAC
                     
-                    # Automatically confirm the passkey and authorize service
-                    print("Automatically confirming the passkey...")
+                    # Automatically confirm the passkey for the first-time connection
+                    print("Automatically confirming the passkey for the first-time connection...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
                     time.sleep(5)  # Wait for 5 seconds
@@ -69,6 +68,7 @@ def auto_accept_pairing():
                     process.stdin.write('quit\n')
                     time.sleep(5)  # Wait for 5 seconds
                     process.stdin.flush()
+                    pairing_complete = True  # Set the flag to indicate pairing is complete
                     break
 
                 elif 'Request confirmation' in output or 'Confirm passkey' in output:
