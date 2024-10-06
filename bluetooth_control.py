@@ -46,27 +46,20 @@ def auto_accept_pairing():
                     process.stdin.flush()
 
                 elif 'Authorize service' in output:
-                   
-                    process.stdin.write('yes\n')  # Automatically respond with 'yes'
+                    process.stdin.write('quit\n')  # Automatically respond with 'yes'
                     process.stdin.flush()
 
-    # Wait for 2 seconds after authorizing the service
+                    # Wait for 2 seconds after authorizing the service
                     time.sleep(1)
 
-    # Send 'quit' to bluetoothctl to exit gracefully
+                    # Send 'quit' to bluetoothctl to exit gracefully
                     process.stdin.write('quit\n')
                     process.stdin.flush()
 
-    # Wait for the process to terminate
+                    # Wait for the process to terminate
                     process.wait()
     
                     print("Exited bluetoothctl after authorizing service.")
-                    break
-                # Detect successful pairing completion
-                if 'Paired: yes' in output or 'Connection successful' in output:
-                    print("Pairing completed successfully.")
-                    pairing_complete = True
-                    process.terminate()  # Terminate the process once pairing is complete
                     break
 
                 # Extract the device MAC address from the output
