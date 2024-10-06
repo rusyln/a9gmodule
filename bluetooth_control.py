@@ -46,7 +46,7 @@ def auto_accept_pairing():
                     process.stdin.flush()
 
                 elif 'Authorize service' in output:
-    		    print("Automatically authorizing service...")
+                    print("Automatically authorizing service...")
                     process.stdin.write('yes\n')  # Automatically respond with 'yes'
                     process.stdin.flush()
 
