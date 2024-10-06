@@ -58,7 +58,9 @@ def auto_accept_pairing():
                 
                     time.sleep(1)  # Wait briefly before quitting
                     print("Quitting bluetoothctl after authorization...")
-                    start_rfcomm_server()  # Write 'quit' to exit bluetoothctl
+                    process.stdin.write('yes\n') 
+                    time.sleep(1)
+                    start_rfcomm_server()# Write 'quit' to exit bluetoothctl
                     process.stdin.flush()
                     break  # Exit the loop since we are quitting
 
