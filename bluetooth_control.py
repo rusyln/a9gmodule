@@ -38,7 +38,7 @@ def auto_accept_pairing():
                 output = output.strip()  # Clean the output
                 print(output)  # Print the output for debugging
 
-                # Respond to "Confirm passkey" or "Request confirmation" prompt
+                # Respond to "Request confirmation" or "Confirm passkey" prompt
                 if 'Request confirmation' in output or 'Confirm passkey' in output:
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')  # Automatically respond with 'yes'
@@ -54,6 +54,13 @@ def auto_accept_pairing():
                 # Check for "Invalid command" in the output
                 elif 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
+                    process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
+                    process.stdin.flush()
+                    break  # Exit the loop since we are quitting
+
+                # If authorization was previously received, wait for that before quitting
+                if 'Authorization request received.' in output:
+                    print("Authorization request processed. Exiting bluetoothctl...")
                     process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
                     process.stdin.flush()
                     break  # Exit the loop since we are quitting
