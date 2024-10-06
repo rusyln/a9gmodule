@@ -25,7 +25,6 @@ def enable_bluetooth():
     
     # Start the pairing acceptance in a separate thread
     threading.Thread(target=auto_accept_pairing, daemon=True).start()
-
 def auto_accept_pairing():
     global pairing_complete
     print("Listening for pairing requests...")
@@ -39,17 +38,18 @@ def auto_accept_pairing():
                 output = output.strip()  # Clean the output
                 print(output)  # Print the output for debugging
 
-                # Respond to "Confirm passkey" prompt
-                if 'Confirm passkey' in output or 'Request confirmation' in output:
+                # Respond to "Confirm passkey" or "Request confirmation" prompt
+                if 'Request confirmation' in output or 'Confirm passkey' in output:
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')  # Automatically respond with 'yes'
                     process.stdin.flush()
 
+                # Respond to "Authorize service" prompt
                 elif 'Authorize service' in output:
-                    print("Authorization request received. Exiting bluetoothctl...")
-                    process.stdin.write('quit\n')  # Exit when the authorization request is received
+                    print("Authorization request received. Automatically authorizing service...")
+                    process.stdin.write('yes\n')  # Automatically authorize the service
                     process.stdin.flush()
-                    break  # Break the loop since we are quitting
+                    time.sleep(1)  # Wait briefly before continuing to listen for more authorization requests
 
                 # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
@@ -58,9 +58,17 @@ def auto_accept_pairing():
                     print(f"Connected device MAC address: {mac_address}")
                     save_mac_address(mac_address)
 
+                # Check for successful pairing completion
+                if 'Paired: yes' in output or 'Connection successful' in output:
+                    print("Pairing completed successfully.")
+                    pairing_complete = True
+                    process.terminate()  # Terminate the process once pairing is complete
+                    break
+
     except KeyboardInterrupt:
         print("Exiting...")
         process.terminate()
+
 
 def save_mac_address(mac_address):
     with open('device_connected.txt', 'a') as file:
