@@ -25,6 +25,7 @@ def enable_bluetooth():
     
     # Start the pairing acceptance in a separate thread
     threading.Thread(target=auto_accept_pairing, daemon=True).start()
+
 def auto_accept_pairing():
     global last_connected_mac
     
@@ -57,16 +58,16 @@ def auto_accept_pairing():
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
+                    time.sleep(3)  # Wait for 3 seconds
                     
-                    time.sleep(1)
                     print("Authorization request received. Automatically authorizing service...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
+                    time.sleep(3)  # Wait for 3 seconds
 
-                    time.sleep(1)
                     print("Quitting bluetoothctl after authorization...")
                     process.stdin.write('quit\n')
-                    time.sleep(1)
+                    time.sleep(3)  # Wait for 3 seconds
                     process.stdin.flush()
                     break
 
@@ -74,12 +75,13 @@ def auto_accept_pairing():
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
+                    time.sleep(3)  # Wait for 3 seconds
 
                 elif 'Authorize service' in output:
                     print("Authorization request received. Automatically authorizing service...")
                     process.stdin.write('yes\n')
                     process.stdin.flush()
-                    time.sleep(1)
+                    time.sleep(3)  # Wait for 3 seconds
 
                 elif 'Invalid command' in output:
                     print("Invalid command detected. Quitting bluetoothctl...")
