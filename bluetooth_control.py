@@ -2,15 +2,18 @@ from gpiozero import Button
 from signal import pause
 import subprocess
 import threading
-import serial
-import time
 import re
+import bluetooth
+import time
 
 # Define GPIO pin for the button
 BUTTON_PIN = 17
 
 # Initialize the button
 button = Button(BUTTON_PIN)
+
+# Global flag to indicate pairing completion
+pairing_complete = False
 
 def enable_bluetooth():
     print("Enabling Bluetooth...")
@@ -24,6 +27,7 @@ def enable_bluetooth():
     threading.Thread(target=auto_accept_pairing, daemon=True).start()
 
 def auto_accept_pairing():
+    global pairing_complete
     print("Listening for pairing requests...")
     # Start bluetoothctl interactively and respond to prompts
     process = subprocess.Popen(['bluetoothctl'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -42,9 +46,28 @@ def auto_accept_pairing():
                     process.stdin.flush()
 
                 elif 'Authorize service' in output:
-                    print("Automatically authorizing service...")
+    		    print("Automatically authorizing service...")
                     process.stdin.write('yes\n')  # Automatically respond with 'yes'
                     process.stdin.flush()
+
+    # Wait for 2 seconds after authorizing the service
+                    time.sleep(2)
+
+    # Send 'quit' to bluetoothctl to exit gracefully
+                    process.stdin.write('quit\n')
+                    process.stdin.flush()
+
+    # Wait for the process to terminate
+                    process.wait()
+    
+                    print("Exited bluetoothctl after authorizing service.")
+                    break
+                # Detect successful pairing completion
+                if 'Paired: yes' in output or 'Connection successful' in output:
+                    print("Pairing completed successfully.")
+                    pairing_complete = True
+                    process.terminate()  # Terminate the process once pairing is complete
+                    break
 
                 # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
@@ -52,7 +75,6 @@ def auto_accept_pairing():
                     mac_address = device_match.group(1)
                     print(f"Connected device MAC address: {mac_address}")
                     save_mac_address(mac_address)
-                    bind_rfcomm(mac_address)
 
     except KeyboardInterrupt:
         print("Exiting...")
@@ -63,68 +85,61 @@ def save_mac_address(mac_address):
         file.write(f"{mac_address}\n")
     print(f"Saved MAC address: {mac_address} to device_connected.txt")
 
-def bind_rfcomm(mac_address):
-    # Bind to the RFCOMM device
-    print(f"Binding to RFCOMM for device: {mac_address}")
-    subprocess.run(["sudo", "rfcomm", "bind", "/dev/rfcomm0", mac_address])
-    print("RFCOMM bound.")
+def start_rfcomm_server():
+    print("Starting RFCOMM server on channel 23...")
+    
+    # Bind RFCOMM after SP profile is added
+    subprocess.run(["sudo", "sdptool", "add", "--channel=23", "SP"])
 
-def wait_for_rfcomm():
-    while True:
-        try:
-            ser = serial.Serial('/dev/rfcomm0', 9600)
-            print("Connected to RFCOMM")
-            return ser  # Return the connected serial object
-        except serial.SerialException:
-            print("Waiting for RFCOMM connection...")
-            time.sleep(1)  # Wait a second before retrying
+    # Create a Bluetooth socket
+    server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+    port = 23
+    server_sock.bind(("", port))
+    server_sock.listen(1)
 
-def listen_for_commands(ser):
-    while True:
-        try:
-            if ser.in_waiting > 0:
-                command = ser.readline().decode('utf-8').strip()  # Read and decode command
-                print(f"Received command: {command}")  # Log the command
+    print(f"Listening for connections on RFCOMM channel {port}...")
 
-                # Execute the command using subprocess
-                try:
-                    subprocess.call(command, shell=True)
-                except Exception as e:
-                    print(f"Error executing command: {e}")
+    try:
+        client_sock, address = server_sock.accept()
+        print("Connection established with:", address)
 
-        except OSError as e:
-            print(f"Error with serial port: {e}. Attempting to re-establish connection.")
+        while True:
+            recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
+            print("Received command:", recvdata)
+
+            if recvdata == "Q":
+                print("Ending connection.")
+                break
+
+            # Execute the received command
             try:
-                ser.close()  # Close the existing connection
-                ser = wait_for_rfcomm()  # Try to open it again
-                print("Re-established connection to serial port.")
-            except Exception as ex:
-                print(f"Failed to re-establish connection: {ex}")
-                break  # Exit loop on persistent failure
+                # Run the command using subprocess
+                output = subprocess.check_output(recvdata, shell=True, text=True)
+                print("Command output:", output)  # Print command output for debugging
+                client_sock.send(output.encode('utf-8'))  # Send the output back to the client
+            except subprocess.CalledProcessError as e:
+                error_message = f"Error executing command: {e}\nOutput: {e.output}"
+                print("Error:", error_message)  # Print the error for debugging
+                client_sock.send(error_message.encode('utf-8'))  # Send error message back to client
 
+    except OSError as e:
+        print("Error:", e)
 
-def listen_for_commands(ser):
-    while True:
-        try:
-            if ser.in_waiting > 0:
-                command = ser.readline().decode('utf-8').strip()
-                print(f"Received command: {command}")
+    finally:
+        client_sock.close()
+        server_sock.close()
+        print("Sockets closed.")
 
-                # Execute the command using subprocess
-                try:
-                    subprocess.call(command, shell=True)
-                except Exception as e:
-                    print(f"Error executing command: {e}")
+# Function to wait for pairing completion before proceeding
+def wait_for_pairing_completion():
+    global pairing_complete
+    print("Waiting for pairing to complete...")
+    while not pairing_complete:
+        time.sleep(1)  # Sleep for a second and check again
+    print("Pairing completed. Proceeding with SP service setup and RFCOMM server...")
 
-        except OSError as e:
-            print(f"Error with serial port: {e}. Attempting to re-establish connection.")
-            try:
-                ser.close()  # Close the existing connection
-                ser = wait_for_rfcomm()  # Try to open it again
-                print("Re-established connection to serial port.")
-            except Exception as ex:
-                print(f"Failed to re-establish connection: {ex}")
-                break  # Exit loop on persistent failure
+    # After pairing is done, add SP service and start RFCOMM server
+    start_rfcomm_server()
 
 # Attach the button hold event to enable Bluetooth
 button.when_held = enable_bluetooth
@@ -135,6 +150,5 @@ print("Waiting for button press...")
 # Wait for events
 pause()
 
-# Start listening for commands after binding RFCOMM
-ser = wait_for_rfcomm()
-threading.Thread(target=listen_for_commands, args=(ser,), daemon=True).start()
+# Start waiting for pairing completion in a new thread
+threading.Thread(target=wait_for_pairing_completion, daemon=True).start()
