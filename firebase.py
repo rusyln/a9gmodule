@@ -54,7 +54,7 @@ def get_gps_location():
     print("GPS Read Response:", gps_read_response)
 
     # Wait for a moment to ensure data is ready
-    time.sleep(5)  # Wait for 5 seconds to allow GPS to gather data
+    time.sleep(6)  # Wait for 5 seconds to allow GPS to gather data
 
     # Now request GPS location
     response = send_command('AT+LOCATION=2')
@@ -175,26 +175,20 @@ def send_sms_to_all_contacts(latitude, longitude):
         time.sleep(1)  # Delay to avoid overwhelming the module
 
 def on_button_held():
-    """Triggered when the button is held for 3 seconds."""
     print("Button held for 3 seconds! Fetching GPS location...")
-    latitude, longitude = get_gps_location()
-    
-    if latitude and longitude:
+    latitude, longitude = get_gps_location()  # Fetch GPS location
+    if latitude is not None and longitude is not None:
         save_location_to_file(latitude, longitude)
-        
-        # Send the location data to Firebase
-        send_to_firebase(latitude, longitude)
-
-        # Send SMS with latitude and longitude to all contacts
+        user_id = "example_user_id"  # Replace with the actual user ID
+        send_to_firebase(user_id, latitude, longitude)  # Pass latitude and longitude here
+# Send SMS with latitude and longitude to all contacts
         send_sms_to_all_contacts(latitude, longitude)
         print("SMS sent to all contacts.")
-
     else:
-        print("No GPS data received.")
+        print("Failed to retrieve GPS location.")
 
-    # Delay before returning to waiting for button press
-    time.sleep(3)
-    print("Returning to waiting for button press...")
+# Connect the button callback to the hold event
+button.when_held = on_button_held
 
 def main():
     """Main function to run the script."""

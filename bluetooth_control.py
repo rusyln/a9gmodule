@@ -83,6 +83,30 @@ def listen_for_commands(ser):
     while True:
         try:
             if ser.in_waiting > 0:
+                command = ser.readline().decode('utf-8').strip()  # Read and decode command
+                print(f"Received command: {command}")  # Log the command
+
+                # Execute the command using subprocess
+                try:
+                    subprocess.call(command, shell=True)
+                except Exception as e:
+                    print(f"Error executing command: {e}")
+
+        except OSError as e:
+            print(f"Error with serial port: {e}. Attempting to re-establish connection.")
+            try:
+                ser.close()  # Close the existing connection
+                ser = wait_for_rfcomm()  # Try to open it again
+                print("Re-established connection to serial port.")
+            except Exception as ex:
+                print(f"Failed to re-establish connection: {ex}")
+                break  # Exit loop on persistent failure
+
+
+def listen_for_commands(ser):
+    while True:
+        try:
+            if ser.in_waiting > 0:
                 command = ser.readline().decode('utf-8').strip()
                 print(f"Received command: {command}")
 
