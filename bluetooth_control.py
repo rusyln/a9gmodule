@@ -39,28 +39,17 @@ def auto_accept_pairing():
                 output = output.strip()  # Clean the output
                 print(output)  # Print the output for debugging
 
-                # Respond to "Confirm passkey" and "Authorize service" prompts
+                # Respond to "Confirm passkey" prompt
                 if 'Confirm passkey' in output or 'Request confirmation' in output:
                     print("Automatically confirming the passkey...")
                     process.stdin.write('yes\n')  # Automatically respond with 'yes'
                     process.stdin.flush()
 
                 elif 'Authorize service' in output:
-                    process.stdin.write('quit\n')  # Automatically respond with 'yes'
+                    print("Authorization request received. Exiting bluetoothctl...")
+                    process.stdin.write('quit\n')  # Exit when the authorization request is received
                     process.stdin.flush()
-
-                    # Wait for 2 seconds after authorizing the service
-                    time.sleep(1)
-
-                    # Send 'quit' to bluetoothctl to exit gracefully
-                    process.stdin.write('quit\n')
-                    process.stdin.flush()
-
-                    # Wait for the process to terminate
-                    process.wait()
-    
-                    print("Exited bluetoothctl after authorizing service.")
-                    break
+                    break  # Break the loop since we are quitting
 
                 # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
