@@ -51,6 +51,13 @@ def auto_accept_pairing():
                     process.stdin.flush()
                     time.sleep(1)  # Wait briefly before continuing to listen for more authorization requests
 
+                # Check for "Invalid command" in the output
+                elif 'Invalid command' in output:
+                    print("Invalid command detected. Quitting bluetoothctl...")
+                    process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
+                    process.stdin.flush()
+                    break  # Exit the loop since we are quitting
+
                 # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
                 if device_match:
@@ -68,6 +75,7 @@ def auto_accept_pairing():
     except KeyboardInterrupt:
         print("Exiting...")
         process.terminate()
+
 
 
 def save_mac_address(mac_address):
