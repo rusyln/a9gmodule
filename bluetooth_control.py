@@ -65,12 +65,17 @@ def auto_accept_pairing():
                     process.stdin.flush()
                     break  # Exit the loop since we are quitting
 
-                # Extract the device MAC address from the output
+              # Extract the device MAC address from the output
                 device_match = re.search(r'Device\s+([0-9A-Fa-f:]{17})', output)
                 if device_match:
                     mac_address = device_match.group(1)
                     print(f"Connected device MAC address: {mac_address}")
                     save_mac_address(mac_address)
+                    
+                    print("Device connected. Quitting bluetoothctl...")
+                    process.stdin.write('quit\n')  # Write 'quit' to exit bluetoothctl
+                    process.stdin.flush()
+                    break  # Exit the loop since we are quitting
 
                 # Check for successful pairing completion
                 if 'Paired: yes' in output or 'Connection successful' in output:
