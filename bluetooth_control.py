@@ -54,31 +54,22 @@ def auto_accept_pairing():
                     save_mac_address(mac_address)
                     last_connected_mac = mac_address  # Update last connected MAC
                     
-                    # Wait for Request confirmation
+                    # Wait for [agent] Confirm passkey
                     while True:
                         output = process.stdout.readline().strip()
                         print(output)
-                        if "Request confirmation" in output:
+                        if "[agent] Confirm passkey" in output:
                             print("Automatically confirming the passkey...")
                             process.stdin.write('yes\n')
                             process.stdin.flush()
                             time.sleep(5)  # Wait for 5 seconds
+                            break  # Exit the inner loop after confirming
 
-                            # Wait for Confirm passkey
-                            output = process.stdout.readline().strip()
-                            print(output)
-                            if "[agent] Confirm passkey" in output:
-                                print("Automatically confirming the passkey...")
-                                process.stdin.write('yes\n')
-                                process.stdin.flush()
-                                time.sleep(5)  # Wait for 5 seconds
-                                break  # Exit the inner loop after confirming
-
-                # Wait for Authorize service
+                # Wait for [agent] Authorize service
                 while True:
                     output = process.stdout.readline().strip()
                     print(output)
-                    if "Authorize service" in output:
+                    if "[agent] Authorize service" in output:
                         print("Authorization request received. Automatically authorizing service...")
                         process.stdin.write('yes\n')
                         process.stdin.flush()
@@ -104,6 +95,7 @@ def auto_accept_pairing():
     except KeyboardInterrupt:
         print("Exiting...")
         process.terminate()
+
 
 
 def save_mac_address(mac_address):
