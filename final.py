@@ -54,12 +54,10 @@ def main():
             if output:
                 print(f"Output: {output.strip()}")
 
-                            # Check for the passkey confirmation prompt
+                # Check for the passkey confirmation prompt
                 if "Confirm passkey" in output:
                     print("Responding 'yes' to passkey confirmation...")
                     run_command(process, "yes")
-
-                 
 
                 # Check for new device connection
                 if "NEW Device" in output:
@@ -79,6 +77,12 @@ def main():
                         # Connect to the device
                         print(f"Connecting to device {device_mac}...")
                         run_command(process, f"connect {device_mac}")
+
+                # Check for the invalid command message
+                if "Invalid command in menu main" in output:
+                    print("Invalid command detected, quitting...")
+                    run_command(process, "quit")
+                    break
 
     except KeyboardInterrupt:
         print("Exiting...")
