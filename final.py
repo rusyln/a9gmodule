@@ -1,6 +1,13 @@
 import subprocess
 import time
 import re
+import RPi.GPIO as GPIO
+
+# GPIO setup
+GREEN_LED_PIN = 18  # Pin 12 on the Raspberry Pi
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(GREEN_LED_PIN, GPIO.OUT)
+GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Initially turn off the LED
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -37,9 +44,10 @@ def main():
     print("Enabling agent...")
     run_command(process, "agent on")
 
-    # Set as default agent
+    # Set as default agent and turn on the green LED
     print("Setting default agent...")
     run_command(process, "default-agent")
+    GPIO.output(GREEN_LED_PIN, GPIO.HIGH)  # Turn on the green LED to indicate the agent is ready
 
     # Start device discovery
     print("Starting device discovery...")
@@ -92,6 +100,8 @@ def main():
         # Stop scanning
         print("Stopping device discovery...")
         run_command(process, "scan off")
+        GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off the green LED when exiting
+        GPIO.cleanup()  # Reset GPIO settings
         process.terminate()
 
 if __name__ == "__main__":
