@@ -54,10 +54,15 @@ def main():
             if output:
                 print(f"Output: {output.strip()}")
 
-                # Check for the passkey confirmation prompt
+                            # Check for the passkey confirmation prompt
                 if "Confirm passkey" in output:
                     print("Responding 'yes' to passkey confirmation...")
                     run_command(process, "yes")
+
+                    # Stop scanning after confirming passkey
+                    print("Stopping device discovery after passkey confirmation...")
+                    run_command(process, "scan off")
+
 
                 # Check for new device connection
                 if "NEW Device" in output:
@@ -77,15 +82,6 @@ def main():
                         # Connect to the device
                         print(f"Connecting to device {device_mac}...")
                         run_command(process, f"connect {device_mac}")
-
-                # Check if the device has bonded successfully
-                if re.search(r"\[CHG\] Device ([\w:]+) Bonded: yes", output):
-                    print("Device successfully bonded.")
-                    print("Sending 'quit' command to bluetoothctl...")
-
-                    # Send the quit command to bluetoothctl
-                    run_command(process, "quit")
-                    break  # Exit the loop after sending the quit command
 
     except KeyboardInterrupt:
         print("Exiting...")
