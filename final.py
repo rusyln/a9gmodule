@@ -1,8 +1,7 @@
 import subprocess
 import time
 import re
-
-# GPIO library for LED control
+import bluetooth  # Make sure to have the PyBluez library installed
 import RPi.GPIO as GPIO
 
 # Set up GPIO
@@ -26,6 +25,45 @@ def run_command(process, command):
     process.stdin.write(command + '\n')
     process.stdin.flush()
     time.sleep(1)  # Allow some time for processing
+
+def start_bluetooth_server():
+    """Start a Bluetooth socket server to listen for incoming commands."""
+    server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+    port = 23  # Using port 23 for RFCOMM
+    server_sock.bind(("", port))
+    server_sock.listen(1)
+
+    print(f"Listening for connections on RFCOMM channel {port}...")
+
+    try:
+        client_sock, address = server_sock.accept()
+        print("Connection established with:", address)
+
+        while True:
+            recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
+            print("Received command:", recvdata)
+            
+            if recvdata == "Q":
+                print("Ending connection.")
+                break
+            
+            # Execute the received command
+            try:
+                output = subprocess.check_output(recvdata, shell=True, text=True)
+                print("Command output:", output)  # Print command output for debugging
+                client_sock.send(output.encode('utf-8'))  # Send the output back to the client
+            except subprocess.CalledProcessError as e:
+                error_message = f"Error executing command: {e}\nOutput: {e.output}"
+                print("Error:", error_message)  # Print the error for debugging
+                client_sock.send(error_message.encode('utf-8'))  # Send error message back to client
+
+    except OSError as e:
+        print("Error:", e)
+
+    finally:
+        client_sock.close()
+        server_sock.close()
+        print("Sockets closed.")
 
 def main():
     # Start bluetoothctl
@@ -110,9 +148,9 @@ def main():
                     # Turn on the LED light after quitting
                     GPIO.output(17, GPIO.HIGH)  # Turn on LED
                     print("LED turned on. Waiting for user command...")
-                    # Wait for a command (e.g., just wait here)
-                    while True:
-                        time.sleep(1)  # Just wait indefinitely
+
+                    # Start the Bluetooth command server
+                    start_bluetooth_server()
 
     except KeyboardInterrupt:
         print("Exiting...")
