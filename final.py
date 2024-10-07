@@ -40,10 +40,6 @@ def main():
     print("Setting default agent...")
     run_command(process, "default-agent")
 
-    # Start device discovery
-    print("Starting device discovery...")
-    run_command(process, "scan on")
-
     try:
         print("Waiting for a device to connect...")
         while True:
