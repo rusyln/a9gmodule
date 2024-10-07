@@ -79,10 +79,8 @@ def main():
                         run_command(process, f"connect {device_mac}")
 
                 # Check if the device has bonded successfully
-                bonded_match = re.search(r"\[CHG\] Device ([\w:]+) Bonded: yes", output)
-                if bonded_match:
-                    bonded_device_mac = bonded_match.group(1)
-                    print(f"Device {bonded_device_mac} successfully bonded.")
+                if re.search(r"\[CHG\] Device ([\w:]+) Bonded: yes", output):
+                    print("Device successfully bonded.")
                     print("Sending 'quit' command to bluetoothctl...")
 
                     # Send the quit command to bluetoothctl
