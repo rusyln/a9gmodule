@@ -28,6 +28,34 @@ def run_command(process, command):
     process.stdin.flush()
     time.sleep(1)  # Allow some time for processing
 
+def check_connected_devices():
+    """Check for connected devices and return their MAC addresses."""
+    process = subprocess.Popen(
+        ['bluetoothctl', 'devices', 'Connected'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    stdout, _ = process.communicate()
+    
+    connected_devices = []
+    for line in stdout.split('\n'):
+        match = re.search(r"Device ([\w:]+) (.+)", line)
+        if match:
+            device_mac = match.group(1)
+            device_name = match.group(2)
+            connected_devices.append((device_mac, device_name))
+    
+    return connected_devices
+
+def blink_led(pin, times, interval):
+    """Blink the LED a specified number of times."""
+    for _ in range(times):
+        GPIO.output(pin, GPIO.HIGH)
+        time.sleep(interval)
+        GPIO.output(pin, GPIO.LOW)
+        time.sleep(interval)
+
 def main():
     # Start bluetoothctl
     process = run_bluetoothctl()
@@ -53,56 +81,38 @@ def main():
     print("Starting device discovery...")
     run_command(process, "scan on")
 
-    try:
-        print("Waiting for a device to connect...")
-        while True:
-            # Read output continuously
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break  # Exit loop if the process is terminated
-            if output:
-                print(f"Output: {output.strip()}")
+    # Wait for 5 seconds before stopping scan
+    time.sleep(5)
 
-                # Check for the passkey confirmation prompt
-                if "Confirm passkey" in output:
-                    print("Responding 'yes' to passkey confirmation...")
-                    run_command(process, "yes")
+    # Stop scanning and quit
+    print("Stopping device discovery...")
+    run_command(process, "scan off")
+    run_command(process, "quit")
 
-                # Check for new device connection
-                if "NEW Device" in output:
-                    match = re.search(r"NEW Device ([\w:]+)", output)
-                    if match:
-                        device_mac = match.group(1)
-                        print(f"Found new device: {device_mac}")
-                        
-                        # Pairing with the detected device
-                        print(f"Pairing with device {device_mac}...")
-                        run_command(process, f"pair {device_mac}")
+    # Wait for 2 seconds before checking connected devices
+    time.sleep(2)
 
-                        # Trust the device
-                        print(f"Trusting device {device_mac}...")
-                        run_command(process, f"trust {device_mac}")
+    # Check for connected devices
+    connected_devices = check_connected_devices()
+    if connected_devices:
+        print(f"Connected device found: {connected_devices[0][1]} ({connected_devices[0][0]})")
+        
+        # Turn on the LED
+        GPIO.output(GREEN_LED_PIN, GPIO.HIGH)
 
-                        # Connect to the device
-                        print(f"Connecting to device {device_mac}...")
-                        run_command(process, f"connect {device_mac}")
-                
-                # Check for RSSI change
-                if "[CHG] Device" in output and "RSSI:" in output:
-                    print("Received RSSI update. Exiting...")
-                    run_command(process, "quit")
-                    break
+        # Blink the LED 3 times for confirmation
+        blink_led(GREEN_LED_PIN, 3, 0.5)
 
-    except KeyboardInterrupt:
-        print("Exiting...")
+        # Leave the LED on for 3 seconds
+        time.sleep(3)
 
-    finally:
-        # Stop scanning
-        print("Stopping device discovery...")
-        run_command(process, "scan off")
-        GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off the green LED when exiting
-        GPIO.cleanup()  # Reset GPIO settings
-        process.terminate()
+        # Turn off the LED
+        GPIO.output(GREEN_LED_PIN, GPIO.LOW)
+    else:
+        print("No connected devices found.")
+
+    # Cleanup GPIO
+    GPIO.cleanup()
 
 if __name__ == "__main__":
     main()
