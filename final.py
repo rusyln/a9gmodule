@@ -87,7 +87,7 @@ def main():
                 if "Invalid command in menu main" in output:
                     print("Invalid command detected, quitting...")
                     run_command(process, "quit")
-                    break
+                   
 
     except KeyboardInterrupt:
         print("Exiting...")
