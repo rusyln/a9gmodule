@@ -85,9 +85,20 @@ def main():
 
                 # Check for the invalid command message
                 if "Invalid command in menu main" in output:
-                    print("Invalid command detected, quitting bluetoothctl...")
-                    run_command(process, "quit")
-                    # Continue the loop, allowing the script to keep running
+                    print("Invalid command detected, waiting to quit bluetoothctl...")
+
+                    # Wait for 5 seconds before sending quit command
+                    time.sleep(5)
+
+                    # Now wait for the expected prompt that ends with #
+                    while True:
+                        next_output = process.stdout.readline()
+                        if next_output:
+                            print(f"Next Output: {next_output.strip()}")
+                            if next_output.strip().endswith('#'):
+                                print("Sending quit command...")
+                                run_command(process, "quit")
+                                break  # Exit the while loop after sending quit command
 
     except KeyboardInterrupt:
         print("Exiting...")
