@@ -10,8 +10,7 @@ def run_bluetoothctl():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        bufsize=1,  # Line-buffered
-        universal_newlines=True
+        bufsize=1  # Line-buffered
     )
 
 def run_command(process, command):
@@ -66,7 +65,7 @@ def main():
                     if match:
                         device_mac = match.group(1)
                         print(f"Found new device: {device_mac}")
-                        
+
                         # Pairing with the detected device
                         print(f"Pairing with device {device_mac}...")
                         run_command(process, f"pair {device_mac}")
@@ -78,7 +77,17 @@ def main():
                         # Connect to the device
                         print(f"Connecting to device {device_mac}...")
                         run_command(process, f"connect {device_mac}")
-                
+
+                # Check if the device has bonded successfully
+                bonded_match = re.search(r"\[CHG\] Device ([\w:]+) Bonded: yes", output)
+                if bonded_match:
+                    bonded_device_mac = bonded_match.group(1)
+                    print(f"Device {bonded_device_mac} successfully bonded.")
+                    print("Sending 'quit' command to bluetoothctl...")
+
+                    # Send the quit command to bluetoothctl
+                    run_command(process, "quit")
+                    break  # Exit the loop after sending the quit command
 
     except KeyboardInterrupt:
         print("Exiting...")
