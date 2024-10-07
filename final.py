@@ -85,9 +85,9 @@ def main():
 
                 # Check for the invalid command message
                 if "Invalid command in menu main" in output:
-                    print("Invalid command detected, quitting...")
+                    print("Invalid command detected, quitting bluetoothctl...")
                     run_command(process, "quit")
-                   
+                    # Continue the loop, allowing the script to keep running
 
     except KeyboardInterrupt:
         print("Exiting...")
