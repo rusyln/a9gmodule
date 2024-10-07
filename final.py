@@ -59,10 +59,7 @@ def main():
                     print("Responding 'yes' to passkey confirmation...")
                     run_command(process, "yes")
 
-                    # Stop scanning after confirming passkey
-                    print("Stopping device discovery after passkey confirmation...")
-                    run_command(process, "scan off")
-
+                 
 
                 # Check for new device connection
                 if "NEW Device" in output:
