@@ -2,6 +2,13 @@ import subprocess
 import time
 import re
 
+# GPIO library for LED control
+import RPi.GPIO as GPIO
+
+# Set up GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(17, GPIO.OUT)
+
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
     return subprocess.Popen(
@@ -100,6 +107,13 @@ def main():
                                 run_command(process, "quit")
                                 break  # Exit the while loop after sending quit command
 
+                    # Turn on the LED light after quitting
+                    GPIO.output(17, GPIO.HIGH)  # Turn on LED
+                    print("LED turned on. Waiting for user command...")
+                    # Wait for a command (e.g., just wait here)
+                    while True:
+                        time.sleep(1)  # Just wait indefinitely
+
     except KeyboardInterrupt:
         print("Exiting...")
 
@@ -108,6 +122,7 @@ def main():
         print("Stopping device discovery...")
         run_command(process, "scan off")
         process.terminate()
+        GPIO.cleanup()  # Clean up GPIO settings
 
 if __name__ == "__main__":
     main()
