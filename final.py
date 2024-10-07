@@ -1,13 +1,6 @@
 import subprocess
 import time
 import re
-import RPi.GPIO as GPIO
-
-# GPIO setup
-GREEN_LED_PIN = 18  # Pin 12 on the Raspberry Pi
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(GREEN_LED_PIN, GPIO.OUT)
-GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Initially turn off the LED
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -28,34 +21,6 @@ def run_command(process, command):
     process.stdin.flush()
     time.sleep(1)  # Allow some time for processing
 
-def check_connected_devices():
-    """Check for connected devices and return their MAC addresses."""
-    process = subprocess.Popen(
-        ['bluetoothctl', 'devices', 'Connected'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    stdout, _ = process.communicate()
-    
-    connected_devices = []
-    for line in stdout.split('\n'):
-        match = re.search(r"Device ([\w:]+) (.+)", line)
-        if match:
-            device_mac = match.group(1)
-            device_name = match.group(2)
-            connected_devices.append((device_mac, device_name))
-    
-    return connected_devices
-
-def blink_led(pin, times, interval):
-    """Blink the LED a specified number of times."""
-    for _ in range(times):
-        GPIO.output(pin, GPIO.HIGH)
-        time.sleep(interval)
-        GPIO.output(pin, GPIO.LOW)
-        time.sleep(interval)
-
 def main():
     # Start bluetoothctl
     process = run_bluetoothctl()
@@ -72,47 +37,57 @@ def main():
     print("Enabling agent...")
     run_command(process, "agent on")
 
-    # Set as default agent and turn on the green LED
+    # Set as default agent
     print("Setting default agent...")
     run_command(process, "default-agent")
-    GPIO.output(GREEN_LED_PIN, GPIO.HIGH)  # Turn on the green LED to indicate the agent is ready
 
     # Start device discovery
     print("Starting device discovery...")
     run_command(process, "scan on")
 
-    # Wait for 5 seconds before stopping scan
-    time.sleep(5)
+    try:
+        print("Waiting for a device to connect...")
+        while True:
+            # Read output continuously
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break  # Exit loop if the process is terminated
+            if output:
+                print(f"Output: {output.strip()}")
 
-    # Stop scanning and quit
-    print("Stopping device discovery...")
-    run_command(process, "scan off")
-    run_command(process, "quit")
+                # Check for the passkey confirmation prompt
+                if "Confirm passkey" in output:
+                    print("Responding 'yes' to passkey confirmation...")
+                    run_command(process, "yes")
 
-    # Wait for 2 seconds before checking connected devices
-    time.sleep(2)
+                # Check for new device connection
+                if "NEW Device" in output:
+                    match = re.search(r"NEW Device ([\w:]+)", output)
+                    if match:
+                        device_mac = match.group(1)
+                        print(f"Found new device: {device_mac}")
+                        
+                        # Pairing with the detected device
+                        print(f"Pairing with device {device_mac}...")
+                        run_command(process, f"pair {device_mac}")
 
-    # Check for connected devices
-    connected_devices = check_connected_devices()
-    if connected_devices:
-        print(f"Connected device found: {connected_devices[0][1]} ({connected_devices[0][0]})")
-        
-        # Turn on the LED
-        GPIO.output(GREEN_LED_PIN, GPIO.HIGH)
+                        # Trust the device
+                        print(f"Trusting device {device_mac}...")
+                        run_command(process, f"trust {device_mac}")
 
-        # Blink the LED 3 times for confirmation
-        blink_led(GREEN_LED_PIN, 3, 0.5)
+                        # Connect to the device
+                        print(f"Connecting to device {device_mac}...")
+                        run_command(process, f"connect {device_mac}")
+                
 
-        # Leave the LED on for 3 seconds
-        time.sleep(3)
+    except KeyboardInterrupt:
+        print("Exiting...")
 
-        # Turn off the LED
-        GPIO.output(GREEN_LED_PIN, GPIO.LOW)
-    else:
-        print("No connected devices found.")
-
-    # Cleanup GPIO
-    GPIO.cleanup()
+    finally:
+        # Stop scanning
+        print("Stopping device discovery...")
+        run_command(process, "scan off")
+        process.terminate()
 
 if __name__ == "__main__":
     main()
