@@ -19,12 +19,15 @@ def run_bluetoothctl():
         bufsize=1  # Line-buffered
     )
 
-def run_command(process, command):
-    """Run a command in bluetoothctl."""
+def run_command(command):
+    """Run a command and return its output."""
     print(f"Running command: {command}")
-    process.stdin.write(command + '\n')
-    process.stdin.flush()
-    time.sleep(1)  # Allow some time for processing
+    try:
+        output = subprocess.check_output(command, shell=True, text=True)
+        return output.strip()  # Return the command output without leading/trailing whitespace
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {e}")
+        return None
 
 def start_bluetooth_server():
     """Start a Bluetooth socket server to listen for incoming commands."""
@@ -66,28 +69,38 @@ def start_bluetooth_server():
         print("Sockets closed.")
 
 def main():
+    # First, add the Serial Port service
+    print("Registering Serial Port service...")
+    response = run_command("sudo sdptool add --channel=22 SP")
+    
+    if response:
+        print("Response from sdptool:", response)
+    else:
+        print("Failed to register Serial Port service. Exiting.")
+        return
+
     # Start bluetoothctl
     process = run_bluetoothctl()
 
     # Power on the Bluetooth adapter
     print("Powering on the Bluetooth adapter...")
-    run_command(process, "power on")
+    run_command("power on")
 
     # Make the device discoverable
     print("Making device discoverable...")
-    run_command(process, "discoverable on")
+    run_command("discoverable on")
 
     # Enable the agent
     print("Enabling agent...")
-    run_command(process, "agent on")
+    run_command("agent on")
 
     # Set as default agent
     print("Setting default agent...")
-    run_command(process, "default-agent")
+    run_command("default-agent")
 
     # Start device discovery
     print("Starting device discovery...")
-    run_command(process, "scan on")
+    run_command("scan on")
 
     try:
         print("Waiting for a device to connect...")
@@ -102,12 +115,12 @@ def main():
                 # Check for the passkey confirmation prompt
                 if "Confirm passkey" in output:
                     print("Responding 'yes' to passkey confirmation...")
-                    run_command(process, "yes")
+                    run_command("yes")
 
                 # Check for authorization service prompt
                 if "[agent] Authorize service" in output:
                     print("Responding 'yes' to authorization service...")
-                    run_command(process, "yes")
+                    run_command("yes")
 
                 # Check for new device connection
                 if "NEW Device" in output:
@@ -118,15 +131,15 @@ def main():
 
                         # Pairing with the detected device
                         print(f"Pairing with device {device_mac}...")
-                        run_command(process, f"pair {device_mac}")
+                        run_command(f"pair {device_mac}")
 
                         # Trust the device
                         print(f"Trusting device {device_mac}...")
-                        run_command(process, f"trust {device_mac}")
+                        run_command(f"trust {device_mac}")
 
                         # Connect to the device
                         print(f"Connecting to device {device_mac}...")
-                        run_command(process, f"connect {device_mac}")
+                        run_command(f"connect {device_mac}")
 
                 # Check for the invalid command message
                 if "Invalid command in menu main" in output:
@@ -142,7 +155,7 @@ def main():
                             print(f"Next Output: {next_output.strip()}")
                             if next_output.strip().endswith('#'):
                                 print("Sending quit command...")
-                                run_command(process, "quit")
+                                run_command("quit")
                                 break  # Exit the while loop after sending quit command
 
                     # Turn on the LED light after quitting
@@ -158,7 +171,7 @@ def main():
     finally:
         # Stop scanning
         print("Stopping device discovery...")
-        run_command(process, "scan off")
+        run_command("scan off")
         process.terminate()
         GPIO.cleanup()  # Clean up GPIO settings
 
