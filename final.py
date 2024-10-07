@@ -59,6 +59,11 @@ def main():
                     print("Responding 'yes' to passkey confirmation...")
                     run_command(process, "yes")
 
+                # Check for authorization service prompt
+                if "[agent] Authorize service" in output:
+                    print("Responding 'yes' to authorization service...")
+                    run_command(process, "yes")
+
                 # Check for new device connection
                 if "NEW Device" in output:
                     match = re.search(r"NEW Device ([\w:]+)", output)
@@ -82,7 +87,7 @@ def main():
                 if "Invalid command in menu main" in output:
                     print("Invalid command detected, quitting...")
                     run_command(process, "quit")
-                    
+                    break
 
     except KeyboardInterrupt:
         print("Exiting...")
