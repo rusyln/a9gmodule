@@ -1,7 +1,7 @@
 import subprocess
 import time
 import sys
-import bluetooth  # Make sure to install pybluez to use this library
+import bluetooth  # Ensure you have pybluez installed to use this library
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -66,6 +66,15 @@ def start_rfcomm_server():
         client_sock.close()
         server_sock.close()
         print("Sockets closed.")
+
+def run_raspberry_pi_command(command):
+    """Run a command on Raspberry Pi."""
+    try:
+        output = subprocess.check_output(command, shell=True, text=True)
+        print("Command output:", output)
+        return output
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {e}\nOutput: {e.output}")
 
 def main():
     # Start bluetoothctl
@@ -153,6 +162,11 @@ def main():
                             print(f"Response after quit: {output.strip()}")
                         else:
                             break
+
+                    # Execute the Raspberry Pi command after exiting bluetoothctl
+                    print("Ready to execute the Raspberry Pi command...")
+                    run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
+                    print("Command executed successfully.")
 
     except KeyboardInterrupt:
         print("\nExiting...")
