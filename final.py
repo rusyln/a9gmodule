@@ -103,13 +103,10 @@ def main():
                         else:
                             break
 
-                    # Reinitialize bluetoothctl process to keep the script running for more commands
-                    print("Reinitializing bluetoothctl for additional commands...")
-                    process = run_bluetoothctl()
-
-                    # Now you can insert your command here after reinitializing, e.g.:
-                    run_command(process, "sudo sdptool add --channel=23 SP")
-                    print("Ready to execute additional commands...")
+                    # Execute the Raspberry Pi command after exiting bluetoothctl
+                    print("Ready to execute the Raspberry Pi command...")
+                    run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
+                    print("Command executed successfully.")
 
     except KeyboardInterrupt:
         print("\nExiting...")
@@ -123,6 +120,14 @@ def main():
             print("\nbluetoothctl has already exited.")
 
         process.terminate()
+
+def run_raspberry_pi_command(command):
+    """Run a Raspberry Pi command in the shell."""
+    print(f"Executing command: {command}")
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    print(f"Command output:\n{result.stdout}")
+    if result.stderr:
+        print(f"Command error:\n{result.stderr}")
 
 if __name__ == "__main__":
     main()
