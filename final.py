@@ -5,9 +5,14 @@ import bluetooth  # Ensure you have pybluez installed to use this library
 import RPi.GPIO as GPIO  # Import RPi.GPIO library
 
 # Set up GPIO
-LED_PIN = 18  # GPIO pin for the LED
+GREEN_LED_PIN = 18  # GPIO pin for the green LED
+ORANGE_LED_PIN = 24  # GPIO pin for the orange LED
+BUTTON_PIN = 17  # GPIO pin for the blue button
+
 GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
-GPIO.setup(LED_PIN, GPIO.OUT)  # Set LED pin as an output
+GPIO.setup(GREEN_LED_PIN, GPIO.OUT)  # Set green LED pin as an output
+GPIO.setup(ORANGE_LED_PIN, GPIO.OUT)  # Set orange LED pin as an output
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set button pin as input with pull-up
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -45,7 +50,7 @@ def start_rfcomm_server():
     try:
         client_sock, address = server_sock.accept()
         print("Connection established with:", address)
-        GPIO.output(LED_PIN, GPIO.HIGH)  # Turn on the LED when connected
+        GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off the green LED when connected
 
         while True:
             recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
@@ -61,7 +66,7 @@ def start_rfcomm_server():
 
             if recvdata == "stop led":
                 print("Turning off the LED.")
-                GPIO.output(LED_PIN, GPIO.LOW)  # Turn off the LED
+                GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off the green LED
                 continue
 
             # Execute the received command
@@ -154,6 +159,13 @@ def main():
                     start_rfcomm_server()  # Start the RFCOMM server
                     # Do not break, continue listening for other output
 
+            # Check for button press
+            if GPIO.input(BUTTON_PIN) == GPIO.LOW:
+                print("Blue button pressed!")
+                GPIO.output(ORANGE_LED_PIN, GPIO.HIGH)  # Turn on the orange LED
+            else:
+                GPIO.output(ORANGE_LED_PIN, GPIO.LOW)  # Turn off the orange LED
+
             # Show countdown if it has been started
             if countdown_started:
                 elapsed_time = time.time() - start_time
@@ -178,6 +190,9 @@ def main():
 
                     # Now start the RFCOMM server after the command execution
                     start_rfcomm_server()  # Start the RFCOMM server here
+
+            # Keep the green LED on while waiting for button press
+            GPIO.output(GREEN_LED_PIN, GPIO.HIGH)
 
     except KeyboardInterrupt:
         print("\nExiting...")
