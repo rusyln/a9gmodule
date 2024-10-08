@@ -15,10 +15,13 @@ def run_bluetoothctl():
 
 def run_command(process, command):
     """Run a command in bluetoothctl."""
-    print(f"Running command: {command}")
-    process.stdin.write(command + '\n')
-    process.stdin.flush()
-    time.sleep(1)  # Allow some time for processing
+    if process.poll() is None:  # Check if the process is still running
+        print(f"Running command: {command}")
+        process.stdin.write(command + '\n')
+        process.stdin.flush()
+        time.sleep(1)  # Allow some time for processing
+    else:
+        print(f"Process is not running. Unable to execute command: {command}")
 
 def main():
     # Start bluetoothctl
@@ -85,15 +88,20 @@ def main():
                 else:
                     print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
                     run_command(process, "quit")
+                    process.wait()  # Wait for bluetoothctl to exit gracefully
                     countdown_started = False  # Reset countdown after sending quit
 
     except KeyboardInterrupt:
         print("\nExiting...")
 
     finally:
-        # Stop scanning
-        print("\nStopping device discovery...")
-        run_command(process, "scan off")
+        # Stop scanning if bluetoothctl is still running
+        if process.poll() is None:
+            print("\nStopping device discovery...")
+            run_command(process, "scan off")
+        else:
+            print("\nbluetoothctl has already exited.")
+
         process.terminate()
 
 if __name__ == "__main__":
