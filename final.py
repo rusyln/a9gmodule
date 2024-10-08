@@ -98,7 +98,13 @@ def main():
                             if next_output.strip().endswith('#'):
                                 print("Sending quit command...")
                                 run_command(process, "quit")
-                                break  # Exit the while loop after sending quit command
+
+                                # Execute the sdptool command after sending quit
+                                print("Running sdptool command...")
+                                subprocess.run(["sudo", "sdptool", "add", "--channel=23", "SP"])
+
+                                # Continue processing output instead of breaking
+                                print("Continuing to listen for output...")
 
     except KeyboardInterrupt:
         print("Exiting...")
