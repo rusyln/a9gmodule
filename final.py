@@ -125,9 +125,9 @@ def main():
                 # Check for Serial Port service registration
                 if "Serial Port service registered" in output:
                     print("Serial Port service registered. Waiting for 5 seconds...")
-                    time.sleep(5)  # Wait for 5 seconds before starting the server
+                    time.sleep(5)  # Wait for 5 seconds
                     start_rfcomm_server()  # Start the RFCOMM server
-                    break  # Exit loop after starting the server
+                    # Do not break, continue listening for other output
 
             # Show countdown if it has been started
             if countdown_started:
@@ -154,11 +154,6 @@ def main():
                         else:
                             break
 
-                    # Execute the Raspberry Pi command after exiting bluetoothctl
-                    print("Ready to execute the Raspberry Pi command...")
-                    run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
-                    print("Command executed successfully.")
-
     except KeyboardInterrupt:
         print("\nExiting...")
 
@@ -171,14 +166,6 @@ def main():
             print("\nbluetoothctl has already exited.")
 
         process.terminate()
-
-def run_raspberry_pi_command(command):
-    """Run a Raspberry Pi command in the shell."""
-    print(f"Executing command: {command}")
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    print(f"Command output:\n{result.stdout}")
-    if result.stderr:
-        print(f"Command error:\n{result.stderr}")
 
 if __name__ == "__main__":
     main()
