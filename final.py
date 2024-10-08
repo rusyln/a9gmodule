@@ -1,5 +1,6 @@
 import subprocess
 import time
+import sys
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -47,6 +48,7 @@ def main():
         print("Waiting for a device to connect...")
         start_time = time.time()
         authorized_service_found = False
+        countdown_duration = 10  # 10 seconds countdown
 
         while True:
             # Read output continuously
@@ -71,18 +73,23 @@ def main():
                 if authorized_service_found:
                     start_time = time.time()
 
-            # Check if 10 seconds have passed without seeing the authorization prompt
-            if time.time() - start_time > 10 and not authorized_service_found:
-                print("No authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
+            # Show countdown if no authorization prompt is found
+            elapsed_time = time.time() - start_time
+            remaining_time = countdown_duration - int(elapsed_time)
+            if remaining_time > 0:
+                sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
+                sys.stdout.flush()
+            else:
+                print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
                 run_command(process, "quit")
                 start_time = time.time()  # Reset the timer after sending quit
 
     except KeyboardInterrupt:
-        print("Exiting...")
+        print("\nExiting...")
 
     finally:
         # Stop scanning
-        print("Stopping device discovery...")
+        print("\nStopping device discovery...")
         run_command(process, "scan off")
         process.terminate()
 
