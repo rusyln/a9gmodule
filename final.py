@@ -2,6 +2,12 @@ import subprocess
 import time
 import sys
 import bluetooth  # Ensure you have pybluez installed to use this library
+import RPi.GPIO as GPIO  # Import RPi.GPIO library
+
+# Set up GPIO
+LED_PIN = 18  # GPIO pin for the LED
+GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
+GPIO.setup(LED_PIN, GPIO.OUT)  # Set LED pin as an output
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -39,6 +45,7 @@ def start_rfcomm_server():
     try:
         client_sock, address = server_sock.accept()
         print("Connection established with:", address)
+        GPIO.output(LED_PIN, GPIO.HIGH)  # Turn on the LED when connected
 
         while True:
             recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
@@ -47,6 +54,11 @@ def start_rfcomm_server():
             if recvdata == "Q":
                 print("Ending connection.")
                 break
+
+            if recvdata == "stop led":
+                print("Turning off the LED.")
+                GPIO.output(LED_PIN, GPIO.LOW)  # Turn off the LED
+                continue
 
             # Execute the received command
             try:
@@ -167,6 +179,9 @@ def main():
         print("\nExiting...")
 
     finally:
+        # Cleanup GPIO settings
+        GPIO.cleanup()
+        
         # Stop scanning if bluetoothctl is still running
         if process.poll() is None:
             print("\nStopping device discovery...")
@@ -176,6 +191,5 @@ def main():
 
         process.terminate()
 
-# Make sure to call main() to start the program
 if __name__ == "__main__":
     main()
