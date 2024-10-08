@@ -151,21 +151,22 @@ def main():
                     process.wait()  # Wait for bluetoothctl to exit gracefully
                     countdown_started = False  # Reset countdown after sending quit
 
-                    # Execute the Raspberry Pi command immediately after quitting bluetoothctl
+                    # Wait for 5 seconds and monitor the response
+                    print("Waiting for 5 seconds for any response from bluetoothctl...")
+                    time.sleep(5)
+
+                    # Check for any remaining output from bluetoothctl after sending 'quit'
+                    while True:
+                        output = process.stdout.readline()
+                        if output:
+                            print(f"Response after quit: {output.strip()}")
+                        else:
+                            break
+
+                    # Execute the Raspberry Pi command after exiting bluetoothctl
                     print("Ready to execute the Raspberry Pi command...")
                     run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
                     print("Command executed successfully.")
-
-                    # After executing the command, you can loop to accept more Raspberry Pi commands
-                    while True:
-                        # Accept a command from the user
-                        command = input("Enter a command to run on Raspberry Pi (or 'exit' to quit): ")
-                        if command.lower() == 'exit':
-                            print("Exiting...")
-                            break
-
-                        # Execute the command
-                        run_raspberry_pi_command(command)
 
     except KeyboardInterrupt:
         print("\nExiting...")
@@ -179,3 +180,6 @@ def main():
             print("\nbluetoothctl has already exited.")
 
         process.terminate()
+
+if __name__ == "__main__":
+    main()
