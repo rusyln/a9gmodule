@@ -46,9 +46,9 @@ def main():
 
     try:
         print("Waiting for a device to connect...")
-        start_time = time.time()
-        authorized_service_found = False
+        countdown_started = False
         countdown_duration = 10  # 10 seconds countdown
+        start_time = None
 
         while True:
             # Read output continuously
@@ -67,22 +67,25 @@ def main():
                 if "[agent] Authorize service" in output:
                     print("Responding 'yes' to authorization service...")
                     run_command(process, "yes")
-                    authorized_service_found = True  # Set flag if service is authorized
+                    countdown_started = False  # Stop countdown if service is authorized
 
-                # Reset the timer if any expected output is found
-                if authorized_service_found:
+                # Check for the specific message to start the countdown
+                if "Invalid command in menu main:" in output:
+                    print("Received 'Invalid command in menu main:', starting countdown...")
+                    countdown_started = True
                     start_time = time.time()
 
-            # Show countdown if no authorization prompt is found
-            elapsed_time = time.time() - start_time
-            remaining_time = countdown_duration - int(elapsed_time)
-            if remaining_time > 0:
-                sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
-                sys.stdout.flush()
-            else:
-                print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
-                run_command(process, "quit")
-                start_time = time.time()  # Reset the timer after sending quit
+            # Show countdown if it has been started
+            if countdown_started:
+                elapsed_time = time.time() - start_time
+                remaining_time = countdown_duration - int(elapsed_time)
+                if remaining_time > 0:
+                    sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
+                    sys.stdout.flush()
+                else:
+                    print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
+                    run_command(process, "quit")
+                    countdown_started = False  # Reset countdown after sending quit
 
     except KeyboardInterrupt:
         print("\nExiting...")
