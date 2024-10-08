@@ -1,6 +1,5 @@
 import subprocess
 import time
-import re
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -46,6 +45,9 @@ def main():
 
     try:
         print("Waiting for a device to connect...")
+        start_time = time.time()
+        authorized_service_found = False
+
         while True:
             # Read output continuously
             output = process.stdout.readline()
@@ -63,25 +65,17 @@ def main():
                 if "[agent] Authorize service" in output:
                     print("Responding 'yes' to authorization service...")
                     run_command(process, "yes")
+                    authorized_service_found = True  # Set flag if service is authorized
 
-                # # Check for new device connection
-                # if "NEW Device" in output:
-                #     match = re.search(r"NEW Device ([\w:]+)", output)
-                #     if match:
-                #         device_mac = match.group(1)
-                #         print(f"Found new device: {device_mac}")
+                # Reset the timer if any expected output is found
+                if authorized_service_found:
+                    start_time = time.time()
 
-                #         # Pairing with the detected device
-                #         print(f"Pairing with device {device_mac}...")
-                #         run_command(process, f"pair {device_mac}")
-
-                #         # Trust the device
-                #         print(f"Trusting device {device_mac}...")
-                #         run_command(process, f"trust {device_mac}")
-
-                #         # Connect to the device
-                #         print(f"Connecting to device {device_mac}...")
-                #         run_command(process, f"connect {device_mac}")
+            # Check if 10 seconds have passed without seeing the authorization prompt
+            if time.time() - start_time > 10 and not authorized_service_found:
+                print("No authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
+                run_command(process, "quit")
+                start_time = time.time()  # Reset the timer after sending quit
 
     except KeyboardInterrupt:
         print("Exiting...")
