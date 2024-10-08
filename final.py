@@ -101,67 +101,67 @@ def main():
     run_command(process, "scan on")
 
     try:
-    print("Waiting for a device to connect...")
-    countdown_started = False
-    countdown_duration = 10  # 10 seconds countdown
-    start_time = None
+        print("Waiting for a device to connect...")
+        countdown_started = False
+        countdown_duration = 10  # 10 seconds countdown
+        start_time = None
 
-    while True:
-        # Read output continuously
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break  # Exit loop if the process is terminated
-        if output:
-            print(f"Output: {output.strip()}")
+        while True:
+            # Read output continuously
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break  # Exit loop if the process is terminated
+            if output:
+                print(f"Output: {output.strip()}")
 
-            # Check for the passkey confirmation prompt
-            if "Confirm passkey" in output:
-                print("Responding 'yes' to passkey confirmation...")
-                run_command(process, "yes")
+                # Check for the passkey confirmation prompt
+                if "Confirm passkey" in output:
+                    print("Responding 'yes' to passkey confirmation...")
+                    run_command(process, "yes")
 
-            # Check for authorization service prompt
-            if "[agent] Authorize service" in output:
-                print("Responding 'yes' to authorization service...")
-                run_command(process, "yes")
-                countdown_started = False  # Stop countdown if service is authorized
+                # Check for authorization service prompt
+                if "[agent] Authorize service" in output:
+                    print("Responding 'yes' to authorization service...")
+                    run_command(process, "yes")
+                    countdown_started = False  # Stop countdown if service is authorized
 
-            # Check for the specific message to start the countdown
-            if "Invalid command in menu main:" in output:
-                print("Received 'Invalid command in menu main:', starting countdown...")
-                countdown_started = True
-                start_time = time.time()
+                # Check for the specific message to start the countdown
+                if "Invalid command in menu main:" in output:
+                    print("Received 'Invalid command in menu main:', starting countdown...")
+                    countdown_started = True
+                    start_time = time.time()
 
-            # Check for Serial Port service registration
-            if "Serial Port service registered" in output:
-                print("Serial Port service registered. Waiting for 5 seconds...")
-                time.sleep(5)  # Wait for 5 seconds
-                start_rfcomm_server()  # Start the RFCOMM server
-                # Do not break, continue listening for other output
+                # Check for Serial Port service registration
+                if "Serial Port service registered" in output:
+                    print("Serial Port service registered. Waiting for 5 seconds...")
+                    time.sleep(5)  # Wait for 5 seconds
+                    start_rfcomm_server()  # Start the RFCOMM server
+                    # Do not break, continue listening for other output
 
-        # Show countdown if it has been started
-        if countdown_started:
-            elapsed_time = time.time() - start_time
-            remaining_time = countdown_duration - int(elapsed_time)
-            if remaining_time > 0:
-                sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
-                sys.stdout.flush()
-            else:
-                print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
-                run_command(process, "quit")
-                process.wait()  # Wait for bluetoothctl to exit gracefully
-                countdown_started = False  # Reset countdown after sending quit
+            # Show countdown if it has been started
+            if countdown_started:
+                elapsed_time = time.time() - start_time
+                remaining_time = countdown_duration - int(elapsed_time)
+                if remaining_time > 0:
+                    sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
+                    sys.stdout.flush()
+                else:
+                    print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
+                    run_command(process, "quit")
+                    process.wait()  # Wait for bluetoothctl to exit gracefully
+                    countdown_started = False  # Reset countdown after sending quit
 
-                # Wait for 5 seconds for any response from bluetoothctl
-                print("Waiting for 5 seconds for any response from bluetoothctl...")
-                time.sleep(5)
+                    # Wait for 5 seconds for any response from bluetoothctl
+                    print("Waiting for 5 seconds for any response from bluetoothctl...")
+                    time.sleep(5)
 
-                # Execute the Raspberry Pi command after exiting bluetoothctl
-                print("Ready to execute the Raspberry Pi command...")
-                run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
-                print("Command executed successfully.")
+                    # Execute the Raspberry Pi command after exiting bluetoothctl
+                    print("Ready to execute the Raspberry Pi command...")
+                    run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
+                    print("Command executed successfully.")
 
-                # Now start the RFCOMM server after the command execution
-                start_rfcomm_server()  # Start the RFCOMM server here
+                    # Now start the RFCOMM server after the command execution
+                    start_rfcomm_server()  # Start the RFCOMM server here
 
 except KeyboardInterrupt:
     print("\nExiting...")
