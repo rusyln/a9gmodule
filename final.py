@@ -103,7 +103,12 @@ def main():
                         else:
                             break
 
-                    # Insert your command after the wait here, e.g.:
+                    # Reinitialize bluetoothctl process to keep the script running for more commands
+                    print("Reinitializing bluetoothctl for additional commands...")
+                    process = run_bluetoothctl()
+
+                    # Now you can insert your command here after reinitializing, e.g.:
+                    run_command(process, "sudo sdptool add --channel=23 SP")
                     print("Ready to execute additional commands...")
 
     except KeyboardInterrupt:
