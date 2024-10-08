@@ -163,15 +163,19 @@ def main():
                     # Now start the RFCOMM server after the command execution
                     start_rfcomm_server()  # Start the RFCOMM server here
 
-except KeyboardInterrupt:
-    print("\nExiting...")
+    except KeyboardInterrupt:
+        print("\nExiting...")
 
-finally:
-    # Stop scanning if bluetoothctl is still running
-    if process.poll() is None:
-        print("\nStopping device discovery...")
-        run_command(process, "scan off")
-    else:
-        print("\nbluetoothctl has already exited.")
+    finally:
+        # Stop scanning if bluetoothctl is still running
+        if process.poll() is None:
+            print("\nStopping device discovery...")
+            run_command(process, "scan off")
+        else:
+            print("\nbluetoothctl has already exited.")
 
-    process.terminate()
+        process.terminate()
+
+# Make sure to call main() to start the program
+if __name__ == "__main__":
+    main()
