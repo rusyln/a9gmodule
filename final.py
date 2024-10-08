@@ -1,6 +1,7 @@
 import subprocess
 import time
 import sys
+import bluetooth  # Make sure to install pybluez to use this library
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -22,6 +23,49 @@ def run_command(process, command):
         time.sleep(1)  # Allow some time for processing
     else:
         print(f"Process is not running. Unable to execute command: {command}")
+
+def start_rfcomm_server():
+    """Start RFCOMM server on channel 23."""
+    print("Starting RFCOMM server on channel 23...")
+
+    # Create a Bluetooth socket
+    server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+    port = 23
+    server_sock.bind(("", port))
+    server_sock.listen(1)
+
+    print(f"Listening for connections on RFCOMM channel {port}...")
+
+    try:
+        client_sock, address = server_sock.accept()
+        print("Connection established with:", address)
+
+        while True:
+            recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
+            print("Received command:", recvdata)
+
+            if recvdata == "Q":
+                print("Ending connection.")
+                break
+
+            # Execute the received command
+            try:
+                # Run the command using subprocess
+                output = subprocess.check_output(recvdata, shell=True, text=True)
+                print("Command output:", output)  # Print command output for debugging
+                client_sock.send(output.encode('utf-8'))  # Send the output back to the client
+            except subprocess.CalledProcessError as e:
+                error_message = f"Error executing command: {e}\nOutput: {e.output}"
+                print("Error:", error_message)  # Print the error for debugging
+                client_sock.send(error_message.encode('utf-8'))  # Send error message back to client
+
+    except OSError as e:
+        print("Error:", e)
+
+    finally:
+        client_sock.close()
+        server_sock.close()
+        print("Sockets closed.")
 
 def main():
     # Start bluetoothctl
@@ -77,6 +121,13 @@ def main():
                     print("Received 'Invalid command in menu main:', starting countdown...")
                     countdown_started = True
                     start_time = time.time()
+
+                # Check for Serial Port service registration
+                if "Serial Port service registered" in output:
+                    print("Serial Port service registered. Waiting for 5 seconds...")
+                    time.sleep(5)  # Wait for 5 seconds before starting the server
+                    start_rfcomm_server()  # Start the RFCOMM server
+                    break  # Exit loop after starting the server
 
             # Show countdown if it has been started
             if countdown_started:
