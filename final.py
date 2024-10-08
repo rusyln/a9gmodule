@@ -4,15 +4,17 @@ import sys
 import bluetooth  # Ensure you have pybluez installed to use this library
 import RPi.GPIO as GPIO  # Import RPi.GPIO library
 
-# Set up GPIO
+# Set up GPIO pins
 GREEN_LED_PIN = 18  # GPIO pin for the green LED
-ORANGE_LED_PIN = 24  # GPIO pin for the orange LED
-BUTTON_PIN = 17  # GPIO pin for the blue button
+ORANGE_LED_PIN = 23  # GPIO pin for the orange LED
+BUTTON_PIN_1 = 17  # GPIO pin for the standby button
+BUTTON_PIN_2 = 27  # GPIO pin for the Bluetooth command button
 
 GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
 GPIO.setup(GREEN_LED_PIN, GPIO.OUT)  # Set green LED pin as an output
 GPIO.setup(ORANGE_LED_PIN, GPIO.OUT)  # Set orange LED pin as an output
-GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set button pin as input with pull-up
+GPIO.setup(BUTTON_PIN_1, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set button 1 pin as input with pull-up resistor
+GPIO.setup(BUTTON_PIN_2, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set button 2 pin as input with pull-up resistor
 
 def run_bluetoothctl():
     """Start bluetoothctl as a subprocess and return the process handle."""
@@ -51,6 +53,7 @@ def start_rfcomm_server():
         client_sock, address = server_sock.accept()
         print("Connection established with:", address)
         GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off the green LED when connected
+        GPIO.output(ORANGE_LED_PIN, GPIO.HIGH)  # Turn on the orange LED when connected
 
         while True:
             recvdata = client_sock.recv(1024).decode('utf-8').strip()  # Decode bytes to string and strip whitespace
@@ -122,77 +125,28 @@ def main():
     run_command(process, "scan on")
 
     try:
-        print("Waiting for a device to connect...")
-        countdown_started = False
-        countdown_duration = 10  # 10 seconds countdown
-        start_time = None
+        print("Waiting for button presses...")
+        GPIO.output(GREEN_LED_PIN, GPIO.HIGH)  # Turn on the green LED while waiting
 
         while True:
-            # Read output continuously
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break  # Exit loop if the process is terminated
-            if output:
-                print(f"Output: {output.strip()}")
-
-                # Check for the passkey confirmation prompt
-                if "Confirm passkey" in output:
-                    print("Responding 'yes' to passkey confirmation...")
-                    run_command(process, "yes")
-
-                # Check for authorization service prompt
-                if "[agent] Authorize service" in output:
-                    print("Responding 'yes' to authorization service...")
-                    run_command(process, "yes")
-                    countdown_started = False  # Stop countdown if service is authorized
-
-                # Check for the specific message to start the countdown
-                if "Invalid command in menu main:" in output:
-                    print("Received 'Invalid command in menu main:', starting countdown...")
-                    countdown_started = True
-                    start_time = time.time()
-
-                # Check for Serial Port service registration
-                if "Serial Port service registered" in output:
-                    print("Serial Port service registered. Waiting for 5 seconds...")
-                    time.sleep(5)  # Wait for 5 seconds
-                    start_rfcomm_server()  # Start the RFCOMM server
-                    # Do not break, continue listening for other output
-
-            # Check for button press
-            if GPIO.input(BUTTON_PIN) == GPIO.LOW:
-                print("Blue button pressed!")
-                GPIO.output(ORANGE_LED_PIN, GPIO.HIGH)  # Turn on the orange LED
+            button1_state = GPIO.input(BUTTON_PIN_1)  # Read state of button 1
+            button2_state = GPIO.input(BUTTON_PIN_2)  # Read state of button 2
+            
+            if button2_state == GPIO.LOW:  # If button 2 is pressed
+                GPIO.output(GREEN_LED_PIN, GPIO.LOW)  # Turn off green LED
+                GPIO.output(ORANGE_LED_PIN, GPIO.HIGH)  # Turn on orange LED
+                print("Button 2 pressed, starting Bluetooth connection...")
+                start_rfcomm_server()  # Start the Bluetooth server
+                GPIO.output(ORANGE_LED_PIN, GPIO.LOW)  # Turn off orange LED after connection
+                GPIO.output(GREEN_LED_PIN, GPIO.HIGH)  # Turn on green LED again
+                time.sleep(1)  # Debounce delay after connection
+            elif button1_state == GPIO.LOW:  # If button 1 is pressed
+                print("Button 1 pressed, going to standby mode.")
+                # In standby mode, do nothing or wait for the button to be released
+                while GPIO.input(BUTTON_PIN_1) == GPIO.LOW:
+                    time.sleep(0.1)  # Wait for button release
             else:
-                GPIO.output(ORANGE_LED_PIN, GPIO.LOW)  # Turn off the orange LED
-
-            # Show countdown if it has been started
-            if countdown_started:
-                elapsed_time = time.time() - start_time
-                remaining_time = countdown_duration - int(elapsed_time)
-                if remaining_time > 0:
-                    sys.stdout.write(f"\rWaiting for authorization service... {remaining_time} seconds remaining")
-                    sys.stdout.flush()
-                else:
-                    print("\nNo authorization service found within 10 seconds. Sending 'quit' command to bluetoothctl...")
-                    run_command(process, "quit")
-                    process.wait()  # Wait for bluetoothctl to exit gracefully
-                    countdown_started = False  # Reset countdown after sending quit
-
-                    # Wait for 5 seconds for any response from bluetoothctl
-                    print("Waiting for 5 seconds for any response from bluetoothctl...")
-                    time.sleep(5)
-
-                    # Execute the Raspberry Pi command after exiting bluetoothctl
-                    print("Ready to execute the Raspberry Pi command...")
-                    run_raspberry_pi_command("sudo sdptool add --channel=24 SP")
-                    print("Command executed successfully.")
-
-                    # Now start the RFCOMM server after the command execution
-                    start_rfcomm_server()  # Start the RFCOMM server here
-
-            # Keep the green LED on while waiting for button press
-            GPIO.output(GREEN_LED_PIN, GPIO.HIGH)
+                time.sleep(0.1)  # Wait before checking button states again
 
     except KeyboardInterrupt:
         print("\nExiting...")
