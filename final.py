@@ -64,47 +64,24 @@ def main():
                     print("Responding 'yes' to authorization service...")
                     run_command(process, "yes")
 
-                # Check for new device connection
-                if "NEW Device" in output:
-                    match = re.search(r"NEW Device ([\w:]+)", output)
-                    if match:
-                        device_mac = match.group(1)
-                        print(f"Found new device: {device_mac}")
+                # # Check for new device connection
+                # if "NEW Device" in output:
+                #     match = re.search(r"NEW Device ([\w:]+)", output)
+                #     if match:
+                #         device_mac = match.group(1)
+                #         print(f"Found new device: {device_mac}")
 
-                        # Pairing with the detected device
-                        print(f"Pairing with device {device_mac}...")
-                        run_command(process, f"pair {device_mac}")
+                #         # Pairing with the detected device
+                #         print(f"Pairing with device {device_mac}...")
+                #         run_command(process, f"pair {device_mac}")
 
-                        # Trust the device
-                        print(f"Trusting device {device_mac}...")
-                        run_command(process, f"trust {device_mac}")
+                #         # Trust the device
+                #         print(f"Trusting device {device_mac}...")
+                #         run_command(process, f"trust {device_mac}")
 
-                        # Connect to the device
-                        print(f"Connecting to device {device_mac}...")
-                        run_command(process, f"connect {device_mac}")
-
-                # Check for the invalid command message
-                if "Invalid command in menu main" in output:
-                    print("Invalid command detected, waiting to quit bluetoothctl...")
-
-                    # Wait for 5 seconds before sending quit command
-                    time.sleep(5)
-
-                    # Now wait for the expected prompt that ends with #
-                    while True:
-                        next_output = process.stdout.readline()
-                        if next_output:
-                            print(f"Next Output: {next_output.strip()}")
-                            if next_output.strip().endswith('#'):
-                                print("Sending quit command...")
-                                run_command(process, "quit")
-
-                                # Execute the sdptool command after sending quit
-                                print("Running sdptool command...")
-                                subprocess.run(["sudo", "sdptool", "add", "--channel=23", "SP"])
-
-                                # Continue processing output instead of breaking
-                                print("Continuing to listen for output...")
+                #         # Connect to the device
+                #         print(f"Connecting to device {device_mac}...")
+                #         run_command(process, f"connect {device_mac}")
 
     except KeyboardInterrupt:
         print("Exiting...")
