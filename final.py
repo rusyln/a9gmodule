@@ -36,7 +36,7 @@ def start_rfcomm_server():
 
     # Create a Bluetooth socket
     server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    port = 23
+    port = 24
     server_sock.bind(("", port))
     server_sock.listen(1)
 
@@ -54,6 +54,10 @@ def start_rfcomm_server():
             if recvdata == "Q":
                 print("Ending connection.")
                 break
+            if recvdata == "socket close":
+                print("Ending connection.")
+                server_sock.close()
+                break   
 
             if recvdata == "stop led":
                 print("Turning off the LED.")
@@ -169,7 +173,7 @@ def main():
 
                     # Execute the Raspberry Pi command after exiting bluetoothctl
                     print("Ready to execute the Raspberry Pi command...")
-                    run_raspberry_pi_command("sudo sdptool add --channel=23 SP")
+                    run_raspberry_pi_command("sudo sdptool add --channel=24 SP")
                     print("Command executed successfully.")
 
                     # Now start the RFCOMM server after the command execution
