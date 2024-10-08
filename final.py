@@ -91,6 +91,21 @@ def main():
                     process.wait()  # Wait for bluetoothctl to exit gracefully
                     countdown_started = False  # Reset countdown after sending quit
 
+                    # Wait for 5 seconds and monitor the response
+                    print("Waiting for 5 seconds for any response from bluetoothctl...")
+                    time.sleep(5)
+
+                    # Check for any remaining output from bluetoothctl after sending 'quit'
+                    while True:
+                        output = process.stdout.readline()
+                        if output:
+                            print(f"Response after quit: {output.strip()}")
+                        else:
+                            break
+
+                    # Insert your command after the wait here, e.g.:
+                    print("Ready to execute additional commands...")
+
     except KeyboardInterrupt:
         print("\nExiting...")
 
